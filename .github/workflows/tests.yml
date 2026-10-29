@@ -1,0 +1,31 @@
+# Tests of so101_mtc_perception, the ROS-free core: numpy and pytest, no ROS, simulator or camera.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  so101_mtc_perception:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # the workspace layout: this repository in src/so101_mtc
+      - uses: actions/checkout@v7
+        with:
+          path: src/so101_mtc
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # numpy and pytest as apt has them on Ubuntu 24.04: the versions the tests run with on the laptop
+      - name: Install so101_mtc_perception
+        run: pip install "numpy==1.26.4" "pytest==7.4.4" -e "src/so101_mtc/so101_mtc_perception[dev]"
+
+      - name: Run the tests
+        run: python -m pytest -rs src/so101_mtc/so101_mtc_perception

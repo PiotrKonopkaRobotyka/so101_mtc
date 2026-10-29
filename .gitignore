@@ -1,0 +1,10 @@
+build/
+install/
+log/
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+# recordings and data stay in ~/data (DATA_DIR)
+*.mcap
+*.db3
