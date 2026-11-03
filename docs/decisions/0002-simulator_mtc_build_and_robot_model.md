@@ -29,7 +29,10 @@ Jazzy, the ROS sync of 2026-10-06); its code is in `~/code/experiments/so101_mtc
   - ten picks along MoveIt-planned trajectories: the block held 10 of 10 times with a jaw target of 0.1 rad, 0 of
     10 with 0.2 rad.
 - **apt:** ROS packages come in syncs, and their dependencies carry no versions, so a partial upgrade can mix
-  binaries built against different libraries (ros2_control 4.46 changed the layout of `JointInfo`).
+  binaries built against different libraries (ros2_control 4.46 changed the layout of `JointInfo`). A source
+  underlay ages the same way: after the upgrade for this spike, geometric_shapes went from 2.3.2 to 2.3.4 with a
+  new SONAME, and 93 of the 133 binaries of `moveit_ws` no longer find `libgeometric_shapes.so.2.3.2` until
+  `moveit_ws` is rebuilt.
 - **Size of the upstream repositories:** about 0.8 GB to clone (Menagerie alone checks out 1.9 GB), of which the
   project uses about 40 MB.
 
@@ -50,8 +53,9 @@ Jazzy, the ROS sync of 2026-10-06); its code is in `~/code/experiments/so101_mtc
 
 ## Consequences
 
-- **One underlay:** Docker (M5) needs `osrf/ros:jazzy-desktop` and apt packages only. The rule "a project with
-  MoveIt builds on `moveit_ws`" in `~/code` does not hold for this project.
+- **One underlay:** Docker (M5) needs `osrf/ros:jazzy-desktop` and apt packages only, and a sync upgrade leaves no
+  source underlay to rebuild. The rule "a project with MoveIt builds on `moveit_ws`" in `~/code` does not hold for
+  this project.
 - **After a ROS sync upgrade:** check that MTC still executes and the MuJoCo bridge still works.
 - **Bridge version:** `mujoco_ros2_control` is young (0.1.4 already changes its interface API). The project stays on
   the apt version until a test says otherwise.
