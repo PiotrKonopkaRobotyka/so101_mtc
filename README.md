@@ -11,8 +11,10 @@ metrics (success rate over 50 episodes, time per pick and place): imitation lear
 
 M0 Foundations. The scope and the exit criteria are fixed in
 [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md), the planned nodes, topics and TF frames in
-[docs/architecture.md](docs/architecture.md). Spikes choose the simulator (MuJoCo or Gazebo), where MTC comes from
-and the IK for the arm's 5 joints; the ROS packages follow them. So far only the ROS-free core and its tests exist.
+[docs/architecture.md](docs/architecture.md). The stack is fixed in
+[ADR 0002](docs/decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC
+from apt on `/opt/ros/jazzy`, the official SO-101 model. A spike on the IK for the arm's 5 joints comes next; the
+ROS packages follow it. So far only the ROS-free core and its tests exist.
 
 ## Packages
 
@@ -20,6 +22,23 @@ and the IK for the arm's 5 joints; the ROS packages follow them. So far only the
 - Planned: `so101_mtc_description` (the robot with a TCP frame, the table, the block, the camera),
   `so101_mtc_moveit_config` (end effector, TCP, IK for 5 joints), `so101_mtc_bringup` (one launch for everything),
   `so101_mtc_task` (the MTC pick and place task in C++), `so101_mtc_perception_ros` (a thin node: image → block pose).
+
+## Workspace setup
+
+Ubuntu 24.04 with ROS 2 Jazzy from apt; the workspace builds on `/opt/ros/jazzy` only (no MoveIt from source):
+
+```bash
+mkdir -p so101_mtc_ws/src && cd so101_mtc_ws/src
+git clone git@github.com:PiotrKonopkaRobotyka/so101_mtc.git
+cd .. && python3 src/so101_mtc/tools/fetch_models.py   # pinned SO-101 models into src/ (~55 MB on disk)
+sudo apt install ros-jazzy-moveit ros-jazzy-moveit-task-constructor-core \
+  ros-jazzy-moveit-task-constructor-capabilities ros-jazzy-moveit-task-constructor-visualization \
+  ros-jazzy-mujoco-ros2-control
+```
+
+Upgrade ROS packages a whole sync at a time (`sudo apt upgrade`): their dependencies carry no versions, so a partial
+upgrade can mix incompatible binaries. Once the ROS packages exist (M1), `rosdep install --from-paths src
+--ignore-src -y` takes over from the apt line.
 
 ## Tests
 
@@ -34,6 +53,8 @@ request ([tests.yml](.github/workflows/tests.yml)).
 
 ## License and third-party code
 
-Apache-2.0 ([LICENSE](LICENSE)). Third-party repositories will be pinned in `so101_mtc.repos` and never modified.
-Code adapted from Automatic Addison's myCobot 280 tutorial (`mycobot_mtc_pick_place_demo`, BSD-3-Clause, Addison
-Sears-Collins) says "Based on …" in its header and keeps the BSD-3-Clause notice.
+Apache-2.0 ([LICENSE](LICENSE)). Third-party repositories are pinned in [so101_mtc.repos](so101_mtc.repos) and
+never modified: the official SO-101 model (TheRobotStudio SO-ARM100, `Simulation/SO101`, Apache-2.0) and its MuJoCo
+Menagerie version (`robotstudio_so101`, Apache-2.0). Code adapted from Automatic Addison's myCobot 280 tutorial
+(`mycobot_mtc_pick_place_demo`, BSD-3-Clause, Addison Sears-Collins) says "Based on …" in its header and keeps the
+BSD-3-Clause notice.

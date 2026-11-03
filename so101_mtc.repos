@@ -1,0 +1,15 @@
+# Third-party repositories: pinned and never modified (ADR 0002).
+# Fetch only the folders this project uses (~55 MB on disk), from the workspace:
+#   python3 src/so101_mtc/tools/fetch_models.py
+# `vcs import src < src/so101_mtc/so101_mtc.repos` gives the same layout but clones everything (~0.8 GB download).
+repositories:
+  # official SO-101 model: URDF and MJCF so101_new_calib in Simulation/SO101 (Apache-2.0)
+  SO-ARM100:
+    type: git
+    url: https://github.com/TheRobotStudio/SO-ARM100.git
+    version: a758567c3978dfeefe282ede0500085a48fe8f78
+  # MuJoCo Menagerie: robotstudio_so101, the MJCF for MuJoCo (Apache-2.0)
+  mujoco_menagerie:
+    type: git
+    url: https://github.com/google-deepmind/mujoco_menagerie.git
+    version: 98a70c569c4c1b6da467a20012f766ee1f8dc521
