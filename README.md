@@ -13,8 +13,10 @@ M0 Foundations. The scope and the exit criteria are fixed in
 [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md), the planned nodes, topics and TF frames in
 [docs/architecture.md](docs/architecture.md). The stack is fixed in
 [ADR 0002](docs/decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC
-from apt on `/opt/ros/jazzy`, the official SO-101 model. A spike on the IK for the arm's 5 joints comes next; the
-ROS packages follow it. So far only the ROS-free core and its tests exist.
+from apt on `/opt/ros/jazzy`, the official SO-101 model. The grasp poses and the IK for the arm's 5 joints are fixed
+in [ADR 0003](docs/decisions/0003-ik_and_grasp_poses.md): top-down near the base, tilted further out, exactly
+reachable poses for MoveIt's default KDL. The ROS packages come next (M1). So far only the ROS-free core and its
+tests exist.
 
 ## Packages
 

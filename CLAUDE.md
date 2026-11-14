@@ -39,15 +39,16 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
   M5 release; the task and the metrics shared with project 1.
 - 0002 Simulator, MTC build and robot model: MuJoCo through `mujoco_ros2_control`, MTC from apt on `/opt/ros/jazzy`,
   the official SO-101 (URDF for MoveIt, Menagerie MJCF for MuJoCo), apt-only Python, sparse fetch of the models.
+- 0003 IK and grasp poses: top-down up to ~0.24 m from the pan axis, then tilted 15°/30°; own generator of exactly
+  reachable poses → `GeneratePose` + `ComputeIK` with KDL; TCP (0.0039, −0.0002, −0.0958) m in `gripper_link`.
 
 ## Pitfalls
 
 - MTC exists twice: apt 0.1.8 in `/opt/ros/jazzy` (ours) and source 0.1.4 with a `storage.cpp` patch in `moveit_ws`
   (other projects). Never build or run with `moveit_ws` or another overlay sourced.
 - Upgrade ROS packages a whole sync at a time: apt dependencies carry no versions (ros2_control 4.46 changed ABI).
-- 5 arm joints: a grasp pose is reachable only if its approach lies in the vertical plane through the base axis and
-  the target; full-pose IK (the upstream KDL config) fails elsewhere. A vertical gripper reaches only ~6 cm above the
-  block's centre (ROB-44).
+- 5 arm joints: the arm plane must contain the `wrist_roll` axis, and the TCP is 3.9 mm off it, so poses aimed at the
+  block's azimuth are unreachable when tilted (KDL 0/240); use ADR 0003's correction. `position_only_ik` is useless.
 - Gripper position targets hold the block only past contact (25 mm block: 0.1 rad holds, 0.2 rad never touches).
 - MuJoCo: `<attach>` drops the model's `<option>` (copy it into the scene); services are under
   `/mujoco_ros2_control_node/`; `reset_world` with active controllers leaves the arm at its last command.
@@ -56,4 +57,5 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 ## Current milestone
 
-M0 Foundations: ROB-41 skeleton, ROB-42 prior art and ROB-43 stack (ADR 0002) done; next ROB-44 IK and grasp poses.
+M0 Foundations done: ROB-41 skeleton, ROB-42 prior art, ROB-43 stack (ADR 0002), ROB-44 IK (ADR 0003). Next: M1
+bringup (issues to be planned in Linear); open points for M2 are in ADR 0003's consequences.

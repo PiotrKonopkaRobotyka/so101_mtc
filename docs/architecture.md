@@ -2,7 +2,8 @@
 
 Planned for M1–M4; nothing here is built yet. The stack follows
 [ADR 0002](decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC from
-apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow ROB-44.
+apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow
+[ADR 0003](decisions/0003-ik_and_grasp_poses.md).
 
 ## Nodes and topics
 
@@ -78,8 +79,9 @@ flowchart TB
 1. Perception (M3): the camera image → `block_detector` → `/block_pose` (the position on the table and the yaw). In M2
    the simulator's true pose takes its place.
 2. Planning: `pick_place_task` puts the block into the planning scene and plans the MTC task: current state → open the
-   gripper → move to the grasp → approach → grasp poses reachable with 5 joints (ROB-44) and IK → close → attach the
-   block → lift → move to the place → lower → open → detach → retreat → home.
+   gripper → move to the grasp → approach → grasp poses reachable with 5 joints (ADR 0003: our generator of exactly
+   reachable poses, `GeneratePose` + `ComputeIK` with KDL; top-down near the base, tilted further out) → close →
+   attach the block → lift → move to the place → lower → open → detach → retreat → home.
 3. Execution: the solution goes to `move_group` (`/execute_task_solution`), which sends the trajectories to the
    controllers.
 4. Feedback: the simulator moves the arm; `/joint_states` and TF keep MoveIt and the detector up to date. In M4 an
@@ -107,8 +109,9 @@ flowchart TD
 - `world → base_link`, `world → camera_link → camera_optical_frame` and `gripper_link → tcp` are fixed; the arm's
   links follow `/joint_states` through `robot_state_publisher`.
 - `tcp` is ours: the point between the jaws that MTC grasps with. The upstream `gripper_frame_link` lies 7.9 mm off
-  the `wrist_roll` axis and Menagerie's `gripperframe` site 19.9 mm from it. The stack spike grasped a 25 mm block
-  with (0.0075, −0.0002, −0.096) m in `gripper_link` (3 mm clear of the fixed jaw while descending). ROB-44 fixes it.
+  the `wrist_roll` axis and Menagerie's `gripperframe` site 19.9 mm from it. ADR 0003 puts `tcp` at the measured
+  centre of a grasped 25 mm block, (0.0039, −0.0002, −0.0958) m in `gripper_link`: 3.9 mm off the roll axis, which
+  the grasp pose generator accounts for.
 - `camera_optical_frame` follows REP 103 (z forward, x right, y down). `pixel_to_plane` works in it and takes its pose
   in `world` from TF.
 - The block is not a TF frame: it is a collision object in MoveIt's planning scene, with its pose in `world`.
