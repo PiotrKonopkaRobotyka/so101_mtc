@@ -2,8 +2,8 @@
 <!--
   The SO-101 of so101_mtc: the official URDF so101_new_calib (TheRobotStudio SO-ARM100, Apache-2.0), unmodified but
   for its mesh paths (see CMakeLists.txt), with our frames: world, the table, the TCP, the fixed camera and the
-  ros2_control tag for MuJoCo (ADR 0002, ADR 0003). mujoco/scene.xml.xacro repeats the table and the camera for MuJoCo;
-  test/test_description.py checks that the two agree.
+  ros2_control tag for MuJoCo (ADR 0002, ADR 0003). mujoco/scene.xml.xacro repeats the table and the camera for
+  MuJoCo; test/test_description.py checks that the two agree.
 -->
 <robot name="so101_mtc" xmlns:xacro="http://www.ros.org/wiki/xacro">
   <xacro:arg name="mujoco_model" default="$(find so101_mtc_description)/mujoco/scene.xml"/>
