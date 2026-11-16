@@ -13,8 +13,10 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 ## Packages in this repository
 
 - `so101_mtc_perception/` — plain Python, no `rclpy` (`COLCON_IGNORE`); `geometry`: pixel → ray → table plane.
-- Planned: `so101_mtc_description`, `so101_mtc_moveit_config`, `so101_mtc_bringup` (M1), `so101_mtc_task` (C++ MTC,
-  M2), `so101_mtc_perception_ros` (thin node, M3); see `docs/architecture.md`.
+- `so101_mtc_description/` — URDF xacro (upstream + `world`, table, `tcp`, camera, `ros2_control`), MuJoCo scene
+  (`scene.xml.xacro` → `scene.xml` at build), `config/task.yaml` (project 1's block, area, target); see README.
+- Planned: `so101_mtc_moveit_config`, `so101_mtc_bringup` (M1), `so101_mtc_task` (C++ MTC, M2),
+  `so101_mtc_perception_ros` (thin node, M3); see `docs/architecture.md`.
 
 ## Third-party and attribution
 
@@ -27,10 +29,12 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 ## Build, run, check
 
 - Underlay: `/opt/ros/jazzy` only, never `moveit_ws` (ADR 0002): MTC 0.1.8 and `mujoco_ros2_control` 0.1.2 from apt.
-  No ROS packages to build yet (M1). The stack spike (MuJoCo scene, minimal MoveIt config, grasp test) is in
-  `~/code/experiments/so101_mtc_stack_spike` (its README has the commands).
-- Tests: `python3 -m pytest src/so101_mtc/so101_mtc_perception` from the workspace (~1 s). System Python with numpy
-  1.26.4 and pytest 7.4.4 from apt, no venv (`pythonpath` in `pyproject.toml`); CI pins the same versions.
+  Spike code (MoveIt config, controllers, grasp test): `~/code/experiments/so101_mtc_stack_spike`.
+- Build `colcon build --packages-select so101_mtc_description` (needs the fetched models), show `ros2 launch
+  so101_mtc_description display.launch.py`, test `colcon test --packages-select so101_mtc_description &&
+  colcon test-result --verbose` (xacro, MuJoCo `compile`, URDF ↔ MJCF; ~1 s, not in CI before M5).
+- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_perception` from the workspace (~1 s). System Python with
+  numpy 1.26.4 and pytest 7.4.4 from apt, no venv (`pythonpath` in `pyproject.toml`); CI pins the same versions.
 - Data outside git: `DATA_DIR` (default `~/data`) under `so101_mtc/`; spike code in `~/code/experiments/so101_mtc_*`.
 
 ## Decisions (`docs/decisions/`)
@@ -52,10 +56,12 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - Gripper position targets hold the block only past contact (25 mm block: 0.1 rad holds, 0.2 rad never touches).
 - MuJoCo: `<attach>` drops the model's `<option>` (copy it into the scene); services are under
   `/mujoco_ros2_control_node/`; `reset_world` with active controllers leaves the arm at its last command.
-- Upstream URDF: relative mesh paths (`assets/…`), placeholder limits (10); Menagerie's `gripperframe` is 19.9 mm
-  from the URDF's `gripper_frame_link` — the TCP is ours.
+- Upstream URDF: relative mesh paths (`assets/…`; the build installs a copy with `package://` paths), placeholder
+  limits (10); Menagerie's `gripperframe` is 19.9 mm from the URDF's `gripper_frame_link` — the TCP is ours.
+- `scene.xml` is generated: rebuild after editing `scene.xml.xacro` or `task.yaml`; load the installed file only.
+  The table and the camera are written twice (URDF and scene); the test compares them.
 
 ## Current milestone
 
-M0 Foundations done: ROB-41 skeleton, ROB-42 prior art, ROB-43 stack (ADR 0002), ROB-44 IK (ADR 0003). Next: M1
-bringup (issues to be planned in Linear); open points for M2 are in ADR 0003's consequences.
+M0 done (ROB-41–44). M1: ROB-47 description done; next ROB-48 `so101_mtc_moveit_config`, then ROB-49 bringup. The
+block is now project 1's (10 g; the spikes used 15 g): ROB-48 repeats the grasp check. M2's open points: ADR 0003.
