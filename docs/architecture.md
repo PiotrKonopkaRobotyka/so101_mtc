@@ -1,6 +1,7 @@
 # Architecture
 
-Planned for M1–M4; nothing here is built yet. The stack follows
+Planned for M1–M4. Built so far: the robot description and the MuJoCo scene (`so101_mtc_description`, the TF
+frames below). The stack follows
 [ADR 0002](decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC from
 apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow
 [ADR 0003](decisions/0003-ik_and_grasp_poses.md).
@@ -100,18 +101,21 @@ flowchart TD
   gripper_link -->|"gripper"| moving_jaw_so101_v1_link
   gripper_link -->|"fixed, upstream"| gripper_frame_link
   gripper_link -->|"fixed, ours"| tcp
+  world -->|"fixed, ours"| table
   world -->|"fixed, ours"| camera_link
   camera_link -->|"fixed"| camera_optical_frame
 ```
 
 - Link and joint names of the official SO-101 URDF `so101_new_calib` (ADR 0002); the Menagerie MJCF uses the same
   joint names, so ros2_control maps them one to one.
-- `world → base_link`, `world → camera_link → camera_optical_frame` and `gripper_link → tcp` are fixed; the arm's
-  links follow `/joint_states` through `robot_state_publisher`.
+- `world → base_link`, `world → table`, `world → camera_link → camera_optical_frame` and `gripper_link → tcp` are
+  fixed; the arm's links follow `/joint_states` through `robot_state_publisher`. `world` is the table top under
+  `base_link`; `table` is a box for MoveIt's collision checks.
 - `tcp` is ours: the point between the jaws that MTC grasps with. The upstream `gripper_frame_link` lies 7.9 mm off
   the `wrist_roll` axis and Menagerie's `gripperframe` site 19.9 mm from it. ADR 0003 puts `tcp` at the measured
   centre of a grasped 25 mm block, (0.0039, −0.0002, −0.0958) m in `gripper_link`: 3.9 mm off the roll axis, which
-  the grasp pose generator accounts for.
+  the grasp pose generator accounts for. Its axes are those of `gripper_frame_link`: z out of the jaws, along the
+  approach.
 - `camera_optical_frame` follows REP 103 (z forward, x right, y down). `pixel_to_plane` works in it and takes its pose
   in `world` from TF.
 - The block is not a TF frame: it is a collision object in MoveIt's planning scene, with its pose in `world`.

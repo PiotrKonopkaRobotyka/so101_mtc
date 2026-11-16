@@ -1,0 +1,14 @@
+# The pick and place task of project 1 (so101_lerobot ADR 0009, confirmed by its ROB-17), shared and never
+# redefined here (ADR 0001). Metres, kilograms and degrees; positions in `world`, where base_link stands on the
+# table top at the origin. The build puts the block into the MuJoCo scene (mujoco/scene.xml.xacro).
+block:
+  size: 0.025  # edge of the cube
+  mass: 0.010
+# The block's start positions and the target's centre are drawn from this area: a ring sector around the
+# shoulder_pan axis, symmetric about straight ahead (+x of world)
+area:
+  centre: [0.0388, 0.0]  # the shoulder_pan axis, 38.8 mm in front of base_link
+  radius: [0.12, 0.34]
+  azimuth: [-60.0, 60.0]
+target:
+  radius: 0.05  # the target disc: success when the block rests on it (so101-nexus MuJoCoPickAndPlace-v2)

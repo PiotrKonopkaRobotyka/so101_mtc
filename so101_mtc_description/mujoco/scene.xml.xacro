@@ -1,0 +1,52 @@
+<!--
+  MuJoCo scene of so101_mtc (ADR 0002): the official SO-101 (MuJoCo Menagerie robotstudio_so101, Apache-2.0,
+  attached unmodified), the table, the block of config/task.yaml and a fixed camera.
+
+  MJCF has no variables, so this file is a xacro template: `colcon build` expands it with the block of
+  config/task.yaml and installs the result as share/so101_mtc_description/mujoco/scene.xml (see CMakeLists.txt).
+  Build again after editing this file or task.yaml. MuJoCo finds the robot at
+  ../upstream/robotstudio_so101/so101.xml, where CMakeLists.txt installs it, so load the installed scene.
+  urdf/so101_mtc.urdf.xacro repeats the table and the camera for ROS; test/test_description.py checks that they agree.
+-->
+<mujoco model="so101_mtc" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:arg name="task" default=""/>  <!-- the path of config/task.yaml -->
+  <xacro:property name="block" value="${xacro.load_yaml('$(arg task)')['block']}"/>
+  <xacro:property name="half" value="${block['size'] / 2}"/>
+
+  <!-- <attach> keeps the parent's <option>: copied from robotstudio_so101/so101.xml (contact settings for grasping) -->
+  <option integrator="implicitfast" timestep="0.005" cone="elliptic" iterations="10" ls_iterations="20" impratio="10"/>
+  <compiler angle="radian" autolimits="true"/>
+
+  <statistic center="0.15 0 0.1" extent="0.6"/>
+  <visual>
+    <!-- The camera looks straight down, along the headlight and the lamp: their light adds up on the table, so
+      together they stay below 1 and the table is not overexposed -->
+    <headlight diffuse="0.3 0.3 0.3" ambient="0.15 0.15 0.15" specular="0 0 0"/>
+    <global azimuth="160" elevation="-25" offwidth="1280" offheight="960"/>
+  </visual>
+
+  <asset>
+    <model name="so101" file="../upstream/robotstudio_so101/so101.xml"/>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="table" builtin="checker" mark="edge" rgb1="0.75 0.75 0.72" rgb2="0.68 0.68 0.65"
+      markrgb="0.5 0.5 0.5" width="300" height="300"/>
+    <material name="table" texture="table" texuniform="true" texrepeat="10 10" specular="0.1"/>
+  </asset>
+
+  <worldbody>
+    <light name="lamp" type="directional" pos="0.2 0 1.5" dir="0 0 -1" diffuse="0.5 0.5 0.5" specular="0.1 0.1 0.1"/>
+    <!-- Table: top at z = 0, base_link stands on it at the origin of the world -->
+    <geom name="table" type="box" size="0.4 0.45 0.02" pos="0.2 0 -0.02" material="table"/>
+    <attach model="so101" body="base" prefix=""/>
+    <!-- Block: the cube of config/task.yaml, with the contact settings of the box in
+      robotstudio_so101/scene_box.xml. An episode moves it with set_free_joint_state; this is its default pose. -->
+    <body name="block" pos="0.2 0.08 ${half}">
+      <freejoint name="block_joint"/>
+      <geom name="block" type="box" size="${half} ${half} ${half}" mass="${block['mass']}" rgba="0.9 0.15 0.1 1"
+        condim="3" friction="1 .03 .003" contype="2" conaffinity="1" solref="0.01 1"/>
+    </body>
+    <!-- Fixed camera (camera_link in the URDF), straight down over the block area. A MuJoCo camera looks along its
+      -z axis, with x to the image's right and y to its top. -->
+    <camera name="camera" pos="0.22 0 0.55" xyaxes="0 -1 0 1 0 0" fovy="58" resolution="640 480"/>
+  </worldbody>
+</mujoco>
