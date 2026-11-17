@@ -1,0 +1,13 @@
+# Velocity and acceleration limits for planning. The official URDF's are placeholders (velocity 10, effort 10);
+# these stay well below the STS3215 servo's no-load speed (about 4.7 rad/s). Position limits come from the URDF.
+# MoveIt scales the limits by these factors unless a request sets its own (RViz's sliders start from them).
+default_velocity_scaling_factor: 0.5
+default_acceleration_scaling_factor: 0.5
+
+joint_limits:
+  shoulder_pan: {has_velocity_limits: true, max_velocity: 2.0, has_acceleration_limits: true, max_acceleration: 4.0}
+  shoulder_lift: {has_velocity_limits: true, max_velocity: 2.0, has_acceleration_limits: true, max_acceleration: 4.0}
+  elbow_flex: {has_velocity_limits: true, max_velocity: 2.0, has_acceleration_limits: true, max_acceleration: 4.0}
+  wrist_flex: {has_velocity_limits: true, max_velocity: 2.0, has_acceleration_limits: true, max_acceleration: 4.0}
+  wrist_roll: {has_velocity_limits: true, max_velocity: 2.0, has_acceleration_limits: true, max_acceleration: 4.0}
+  gripper: {has_velocity_limits: true, max_velocity: 2.0, has_acceleration_limits: true, max_acceleration: 4.0}

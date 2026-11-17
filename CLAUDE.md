@@ -15,8 +15,9 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - `so101_mtc_perception/` — plain Python, no `rclpy` (`COLCON_IGNORE`); `geometry`: pixel → ray → table plane.
 - `so101_mtc_description/` — URDF xacro (upstream + `world`, table, `tcp`, camera, `ros2_control`), MuJoCo scene
   (`scene.xml.xacro` → `scene.xml` at build), `config/task.yaml` (project 1's block, area, target); see README.
-- Planned: `so101_mtc_moveit_config`, `so101_mtc_bringup` (M1), `so101_mtc_task` (C++ MTC, M2),
-  `so101_mtc_perception_ros` (thin node, M3); see `docs/architecture.md`.
+- `so101_mtc_moveit_config/` — hand-written: SRDF (`arm` base_link → tcp, `gripper`, eef at tcp), KDL, limits, OMPL,
+  `ros2_controllers.yaml` + `moveit_controllers.yaml`, `move_group` with MTC's capability, RViz; see README.
+- Planned: `so101_mtc_bringup` (M1), `so101_mtc_task` (C++ MTC, M2), `so101_mtc_perception_ros` (thin node, M3).
 
 ## Third-party and attribution
 
@@ -29,13 +30,13 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 ## Build, run, check
 
 - Underlay: `/opt/ros/jazzy` only, never `moveit_ws` (ADR 0002): MTC 0.1.8 and `mujoco_ros2_control` 0.1.2 from apt.
-  Spike code (MoveIt config, controllers, grasp test): `~/code/experiments/so101_mtc_stack_spike`.
-- Build `colcon build --packages-select so101_mtc_description` (needs the fetched models), show `ros2 launch
-  so101_mtc_description display.launch.py`, test `colcon test --packages-select so101_mtc_description &&
-  colcon test-result --verbose` (xacro, MuJoCo `compile`, URDF ↔ MJCF; ~1 s, not in CI before M5).
+- Build `colcon build --packages-up-to so101_mtc_moveit_config` (needs the fetched models), show `ros2 launch
+  so101_mtc_description display.launch.py`, test `colcon test --packages-select so101_mtc_description
+  so101_mtc_moveit_config && colcon test-result --verbose` (MuJoCo `compile`, moveit_py; ~3 s, not in CI before M5).
 - Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_perception` from the workspace (~1 s). System Python with
   numpy 1.26.4 and pytest 7.4.4 from apt, no venv (`pythonpath` in `pyproject.toml`); CI pins the same versions.
-- Data outside git: `DATA_DIR` (default `~/data`) under `so101_mtc/`; spike code in `~/code/experiments/so101_mtc_*`.
+- Data outside git: `DATA_DIR` (default `~/data`) under `so101_mtc/`. Spikes and sim checks (READMEs with commands):
+  `~/code/experiments/so101_mtc_{stack_spike,ik_spike,moveit_check}`.
 
 ## Decisions (`docs/decisions/`)
 
@@ -53,15 +54,18 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - Upgrade ROS packages a whole sync at a time: apt dependencies carry no versions (ros2_control 4.46 changed ABI).
 - 5 arm joints: the arm plane must contain the `wrist_roll` axis, and the TCP is 3.9 mm off it, so poses aimed at the
   block's azimuth are unreachable when tilted (KDL 0/240); use ADR 0003's correction. `position_only_ik` is useless.
-- Gripper position targets hold the block only past contact (25 mm block: 0.1 rad holds, 0.2 rad never touches).
 - MuJoCo: `<attach>` drops the model's `<option>` (copy it into the scene); services are under
   `/mujoco_ros2_control_node/`; `reset_world` with active controllers leaves the arm at its last command.
-- Upstream URDF: relative mesh paths (`assets/…`; the build installs a copy with `package://` paths), placeholder
-  limits (10); Menagerie's `gripperframe` is 19.9 mm from the URDF's `gripper_frame_link` — the TCP is ours.
+- Upstream URDF: relative mesh paths and placeholder limits (the build and `joint_limits.yaml` handle them).
 - `scene.xml` is generated: rebuild after editing `scene.xml.xacro` or `task.yaml`; load the installed file only.
   The table and the camera are written twice (URDF and scene); the test compares them.
+- Gripper: position targets hold only past contact; the controller closes to `closed` (0.0) and stalls on the 25 mm
+  block at 0.065 rad. MTC plans from `closed`, hence `allowed_start_tolerance_joints.gripper` 0.2.
+- The tcp is the centre of a block pressed onto the fixed jaw: descend with the tcp 3.6 mm towards the fixed jaw, or
+  the jaw drags the block (25–34 mm); closing then pushes the block under the tcp.
+- wrist_roll = jaw angle beta + 92.8°, limits −157°/+163°: top-down beta 75°–105° is out, use the other jaw side.
 
 ## Current milestone
 
-M0 done (ROB-41–44). M1: ROB-47 description done; next ROB-48 `so101_mtc_moveit_config`, then ROB-49 bringup. The
-block is now project 1's (10 g; the spikes used 15 g): ROB-48 repeats the grasp check. M2's open points: ADR 0003.
+M0 done (ROB-41–44). M1: ROB-47 description and ROB-48 MoveIt config done (8/8 grasps of the 10 g block through
+MoveIt); next ROB-49 bringup. M2's open points: ADR 0003, plus the approach gap and the jaw side (Pitfalls).

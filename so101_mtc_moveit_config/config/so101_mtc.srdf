@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<!--
+  Semantic description of the SO-101 of so101_mtc for MoveIt: the planning groups, the named states, the end
+  effector at tcp and the link pairs MoveIt does not check for collisions. The robot itself is
+  so101_mtc_description's urdf/so101_mtc.urdf.xacro.
+-->
+<robot name="so101_mtc">
+  <!-- arm: the 5 arm joints from base_link to tcp; KDL solves IK for tcp (ADR 0003) -->
+  <group name="arm">
+    <chain base_link="base_link" tip_link="tcp"/>
+  </group>
+  <!-- gripper: the moving jaw. The fixed jaw is part of gripper_link, which wrist_roll turns, so it belongs to
+    the arm. -->
+  <group name="gripper">
+    <joint name="gripper"/>
+  </group>
+
+  <!-- home: the arm folded, the gripper up, out of the camera's view of the block area; the robot starts here
+    (the URDF's ros2_control tag) -->
+  <group_state name="home" group="arm">
+    <joint name="shoulder_pan" value="0.0"/>
+    <joint name="shoulder_lift" value="-1.2"/>
+    <joint name="elbow_flex" value="0.6"/>
+    <joint name="wrist_flex" value="-1.0"/>
+    <joint name="wrist_roll" value="0.0"/>
+  </group_state>
+  <group_state name="open" group="gripper">
+    <joint name="gripper" value="1.2"/>
+  </group_state>
+  <!-- closed: past the jaws' contact with the 25 mm block (about 0.10 rad). The gripper controller stops on the block
+    and keeps pushing (allow_stalling, config/ros2_controllers.yaml); under the servo's full force the jaw rests at
+    about 0.065 rad. -->
+  <group_state name="closed" group="gripper">
+    <joint name="gripper" value="0.0"/>
+  </group_state>
+
+  <end_effector name="gripper" parent_link="tcp" group="gripper" parent_group="arm"/>
+
+  <!-- Link pairs MoveIt does not check for collisions, from MoveIt's collisions_updater over 10000 random states
+    (README: "Collision pairs"). No pair collides always or at the zero pose. Adjacent pairs touch at their joints.
+    "Never" pairs never collided in the sample; a dense grid over the joints between each pair confirms that they
+    cannot touch within the joint limits (closest 8.9 mm, moving_jaw - wrist_link). -->
+  <disable_collisions link1="base_link" link2="shoulder_link" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="table" reason="Adjacent"/>
+  <disable_collisions link1="base_link" link2="upper_arm_link" reason="Never"/>
+  <disable_collisions link1="gripper_link" link2="lower_arm_link" reason="Never"/>
+  <disable_collisions link1="gripper_link" link2="moving_jaw_so101_v1_link" reason="Adjacent"/>
+  <disable_collisions link1="gripper_link" link2="wrist_link" reason="Adjacent"/>
+  <disable_collisions link1="lower_arm_link" link2="moving_jaw_so101_v1_link" reason="Never"/>
+  <disable_collisions link1="lower_arm_link" link2="upper_arm_link" reason="Adjacent"/>
+  <disable_collisions link1="lower_arm_link" link2="wrist_link" reason="Adjacent"/>
+  <disable_collisions link1="moving_jaw_so101_v1_link" link2="wrist_link" reason="Never"/>
+  <disable_collisions link1="shoulder_link" link2="table" reason="Never"/>
+  <disable_collisions link1="shoulder_link" link2="upper_arm_link" reason="Adjacent"/>
+  <disable_collisions link1="table" link2="upper_arm_link" reason="Never"/>
+</robot>
