@@ -1,7 +1,7 @@
 # Architecture
 
 Planned for M1–M4. Built so far: the robot description and the MuJoCo scene (`so101_mtc_description`, the TF
-frames below). The stack follows
+frames below) and the MoveIt config with the controllers (`so101_mtc_moveit_config`). The stack follows
 [ADR 0002](decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC from
 apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow
 [ADR 0003](decisions/0003-ik_and_grasp_poses.md).
@@ -54,8 +54,9 @@ flowchart TB
   the MTC task and sends the solution to `move_group` for execution.
 - **move_group** (MoveIt 2 with our `so101_mtc_moveit_config`): the planning scene, the IK plugin, the planners, the
   MTC execution capability and trajectory execution through the controllers.
-- **ros2_control**: `arm_controller` (`shoulder_pan`, `shoulder_lift`, `elbow_flex`, `wrist_flex`, `wrist_roll`)
-  executes trajectories; `gripper_controller` (`gripper`) is a gripper action controller that stops on the block
+- **ros2_control** (`so101_mtc_moveit_config/config/ros2_controllers.yaml`): `arm_controller` (`shoulder_pan`,
+  `shoulder_lift`, `elbow_flex`, `wrist_flex`, `wrist_roll`) executes trajectories; `gripper_controller` (`gripper`)
+  is a parallel gripper action controller that closes toward `closed` and succeeds when the jaw stops on the block
   (`allow_stalling`, ADR 0002); `joint_state_broadcaster` publishes `/joint_states`.
 - **robot_state_publisher**: the robot description and `/joint_states` → TF of the links.
 - **RViz** (not drawn): MotionPlanning and the MTC panel, to inspect the task's stages and solutions.
@@ -72,8 +73,9 @@ flowchart TB
 - `/tf`, `/tf_static` (`tf2_msgs/TFMessage`): the links from `robot_state_publisher`; the camera and the TCP are static.
 - `/execute_task_solution` (action `moveit_task_constructor_msgs/action/ExecuteTaskSolution`): served by the MTC
   capability of `move_group`.
-- `/arm_controller/follow_joint_trajectory` (action `control_msgs/action/FollowJointTrajectory`) and the gripper
-  controller's action (its type is chosen in M2): MoveIt → ros2_control.
+- `/arm_controller/follow_joint_trajectory` (action `control_msgs/action/FollowJointTrajectory`) and
+  `/gripper_controller/gripper_cmd` (action `control_msgs/action/ParallelGripperCommand`): MoveIt → ros2_control.
+  MoveIt sends a gripper trajectory's last point as one goal.
 
 ### One pick and place
 

@@ -1,0 +1,26 @@
+# MoveIt → ros2_control: which controller executes which joints. The controllers are defined in
+# config/ros2_controllers.yaml; test/test_moveit_config.py checks that the names and joints agree.
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+moveit_simple_controller_manager:
+  controller_names: [arm_controller, gripper_controller]
+  arm_controller:
+    type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
+    joints: [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll]
+  # MoveIt sends the last point of a gripper trajectory as one goal of the parallel gripper action
+  gripper_controller:
+    type: ParallelGripperCommand
+    action_ns: gripper_cmd
+    default: true
+    joints: [gripper]
+
+trajectory_execution:
+  allowed_execution_duration_scaling: 1.2
+  allowed_goal_duration_margin: 0.5  # s
+  # How far a joint may be from a trajectory's first point when the trajectory starts
+  allowed_start_tolerance: 0.01  # rad
+  allowed_start_tolerance_joints:
+    # after a grasp the jaw rests on the block (0.065 rad on the 25 mm block), short of `closed` (0.0)
+    gripper: 0.2

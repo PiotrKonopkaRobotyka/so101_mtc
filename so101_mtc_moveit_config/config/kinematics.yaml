@@ -1,0 +1,6 @@
+# IK for the arm group (base_link → tcp): KDL on the full pose (ADR 0003). The grasp poses come from our own
+# generator of exactly reachable poses, which KDL solves in about 1 ms; the 50 ms timeout bounds a failed search.
+arm:
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  kinematics_solver_search_resolution: 0.005
+  kinematics_solver_timeout: 0.05

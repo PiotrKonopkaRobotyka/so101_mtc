@@ -1,0 +1,9 @@
+# Read by moveit_configs_utils.MoveItConfigsBuilder: where the robot's URDF and SRDF are, so that every launch file
+# builds the same MoveIt config with MoveItConfigsBuilder("so101_mtc", package_name="so101_mtc_moveit_config").
+# The file is hand-written; the MoveIt Setup Assistant also writes one when it generates a config.
+moveit_setup_assistant_config:
+  urdf:
+    package: so101_mtc_description
+    relative_path: urdf/so101_mtc.urdf.xacro
+  srdf:
+    relative_path: config/so101_mtc.srdf
