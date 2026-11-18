@@ -1,0 +1,21 @@
+# Plugins of mujoco_ros2_control 0.1.2 (its plugins.rst), parameters of the ros2_control_node.
+/**:
+  ros__parameters:
+    mujoco_plugins:
+      # The block's true pose in world: the input of the MTC task in M2 and the success check in M4
+      free_joint_state_publisher:
+        type: "mujoco_ros2_control_plugins/FreeJointStatePublisherPlugin"
+        frame_id: ""  # world
+        body_names: ["block"]
+        topic: "/block/free_joint_states"
+        publish_rate: 50.0  # Hz
+      # The scene's fixed camera "camera" (so101_mtc_description's scene), in the URDF's camera_optical_frame.
+      # The plugin renders every camera of the model, also Menagerie's wrist_cam, on its default topics.
+      mujoco_camera_plugin:
+        type: "mujoco_ros2_control_plugins/CameraPlugin"
+        camera_publish_rate: 10.0  # Hz of simulation time
+        camera:
+          frame_name: camera_optical_frame
+          info_topic: /camera/camera_info
+          image_topic: /camera/image_raw
+          depth_topic: /camera/depth/image_raw

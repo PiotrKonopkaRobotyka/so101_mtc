@@ -17,7 +17,8 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
   (`scene.xml.xacro` → `scene.xml` at build), `config/task.yaml` (project 1's block, area, target); see README.
 - `so101_mtc_moveit_config/` — hand-written: SRDF (`arm` base_link → tcp, `gripper`, eef at tcp), KDL, limits, OMPL,
   `ros2_controllers.yaml` + `moveit_controllers.yaml`, `move_group` with MTC's capability, RViz; see README.
-- Planned: `so101_mtc_bringup` (M1), `so101_mtc_task` (C++ MTC, M2), `so101_mtc_perception_ros` (thin node, M3).
+- `so101_mtc_bringup/` — `sim.launch.py` (MuJoCo → spawners by `OnProcessExit` → move_group + RViz), MuJoCo plugins.
+- Planned: `so101_mtc_task` (C++ MTC, M2), `so101_mtc_perception_ros` (thin node, M3).
 
 ## Third-party and attribution
 
@@ -30,9 +31,9 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 ## Build, run, check
 
 - Underlay: `/opt/ros/jazzy` only, never `moveit_ws` (ADR 0002): MTC 0.1.8 and `mujoco_ros2_control` 0.1.2 from apt.
-- Build `colcon build --packages-up-to so101_mtc_moveit_config` (needs the fetched models), show `ros2 launch
-  so101_mtc_description display.launch.py`, test `colcon test --packages-select so101_mtc_description
-  so101_mtc_moveit_config && colcon test-result --verbose` (MuJoCo `compile`, moveit_py; ~3 s, not in CI before M5).
+- Build `colcon build --packages-up-to so101_mtc_bringup` (needs the fetched models); run `ros2 launch
+  so101_mtc_bringup sim.launch.py [headless:=true rviz:=false sim_speed_factor:=5.0]` (alias `so101_mtc`); test
+  `colcon test --packages-up-to so101_mtc_bringup && colcon test-result --verbose` (~3 s, not in CI before M5).
 - Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_perception` from the workspace (~1 s). System Python with
   numpy 1.26.4 and pytest 7.4.4 from apt, no venv (`pythonpath` in `pyproject.toml`); CI pins the same versions.
 - Data outside git: `DATA_DIR` (default `~/data`) under `so101_mtc/`. Spikes and sim checks (READMEs with commands):
@@ -67,5 +68,6 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 ## Current milestone
 
-M0 done (ROB-41–44). M1: ROB-47 description and ROB-48 MoveIt config done (8/8 grasps of the 10 g block through
-MoveIt); next ROB-49 bringup. M2's open points: ADR 0003, plus the approach gap and the jaw side (Pitfalls).
+M0 and M1 done (ROB-41–44, ROB-47–49: one-command bringup, 8/8 grasps through MoveIt). Next M2: the MTC task with
+the true pose; pattern: `mycobot_mtc_pick_place_demo`'s stages, with ADR 0003's poses, the approach gap and the jaw
+side (Pitfalls) instead of `GenerateGraspPose`.
