@@ -9,8 +9,9 @@ metrics (success rate over 50 episodes, time per pick and place): imitation lear
 
 ## Status
 
-M1 One-command sim bringup, in progress: the robot description, the MuJoCo scene and the MoveIt config are built and
-tested (`so101_mtc_description`, `so101_mtc_moveit_config`); the bringup launch comes next. The scope and the exit
+M1 One-command sim bringup done: one command starts MuJoCo with the robot, the table, the block and the camera, the
+controllers, MoveIt with MTC's capability and RViz ([Run the simulation](#run-the-simulation)). M2 (the MTC pick and
+place task with the block's true pose) comes next. The scope and the exit
 criteria are fixed in [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md), the planned nodes, topics
 and TF frames in [docs/architecture.md](docs/architecture.md). The stack is fixed in
 [ADR 0002](docs/decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC
@@ -27,8 +28,9 @@ reachable poses for MoveIt's default KDL.
 - `so101_mtc_moveit_config/` — our MoveIt 2 config: the SRDF with the end effector at the TCP, KDL, joint limits,
   OMPL, the ros2_control and MoveIt controllers, and `move_group` with MTC's capability; see
   [MoveIt config](#moveit-config).
-- Planned: `so101_mtc_bringup` (one launch for everything), `so101_mtc_task` (the MTC pick and place task in C++),
-  `so101_mtc_perception_ros` (a thin node: image → block pose).
+- `so101_mtc_bringup/` — one launch for everything: MuJoCo, the controllers in order, MoveIt and RViz.
+- Planned: `so101_mtc_task` (the MTC pick and place task in C++), `so101_mtc_perception_ros` (a thin node: image →
+  block pose).
 
 ## Workspace setup
 
@@ -50,8 +52,28 @@ The build needs the fetched models: `so101_mtc_description` installs them from `
 `src/mujoco_menagerie` and stops with a message when they are missing.
 
 Upgrade ROS packages a whole sync at a time (`sudo apt upgrade`): their dependencies carry no versions, so a partial
-upgrade can mix incompatible binaries. The apt line stays until the bringup declares the MuJoCo bridge too (M1); the
-MoveIt config already declares the MoveIt and MTC packages it uses.
+upgrade can mix incompatible binaries. `rosdep` installs what the packages declare (MoveIt, the MTC capability and
+panel, the MuJoCo bridge, the controllers); the apt line adds MTC's core library, which the task (M2) will declare.
+
+## Run the simulation
+
+```bash
+ros2 launch so101_mtc_bringup sim.launch.py   # [headless:=true] [rviz:=false] [sim_speed_factor:=5.0]
+```
+
+The MuJoCo window shows the scene; RViz shows the robot, the MotionPlanning panel (drag the marker at the TCP, then
+Plan & Execute), the MTC panel and the fixed camera's image. The launch starts things in order, by events rather
+than sleeps: `robot_state_publisher` and MuJoCo's `ros2_control_node`, then `joint_state_broadcaster`, then the arm's
+and the gripper's controllers, then `move_group` and RViz. A controller that fails to start stops the launch, and so
+does closing the MuJoCo window.
+
+- `headless:=true` runs MuJoCo without its window; `rviz:=false` leaves RViz out.
+- `sim_speed_factor` sets the simulation's speed against real time (5.0: five times faster); below 0, real time.
+- The block's true pose is on `/block/free_joint_states`; `/mujoco_ros2_control_node/set_free_joint_state` moves it,
+  `/mujoco_ros2_control_node/reset_world` resets the scene (with the arm's controllers deactivated first).
+- The camera publishes `/camera/image_raw`, `/camera/depth/image_raw` and `/camera/camera_info` in
+  `camera_optical_frame` at 10 Hz of simulation time; Menagerie's wrist camera publishes under
+  `/mujoco_camera_plugin/wrist_cam/`.
 
 ## Robot description and scene
 
@@ -145,7 +167,7 @@ request ([tests.yml](.github/workflows/tests.yml)).
 The ROS packages are tested from the workspace, after the build (ROS 2 Jazzy; not in CI before M5):
 
 ```bash
-colcon test --packages-select so101_mtc_description so101_mtc_moveit_config && colcon test-result --verbose
+colcon test --packages-up-to so101_mtc_bringup && colcon test-result --verbose
 ```
 
 The test expands the xacro, lets MuJoCo's `compile` load the scene, and checks that the two agree: the joints and
@@ -153,7 +175,8 @@ their limits, the poses of all links over random joint angles, the camera and th
 puts it; and that the table and the camera's view hold the whole task area. The MoveIt config's test loads the robot
 into MoveIt through `moveit_py`, without a simulator: the groups and the end effector, the named states (`home` is
 the start pose), no collision in them but collisions where the arm reaches through the table, and controllers that
-agree with MoveIt's mapping.
+agree with MoveIt's mapping. The bringup's test loads the launch file and checks that the MuJoCo plugins name a
+camera, a frame and a body that exist.
 
 ## License and third-party code
 

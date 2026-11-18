@@ -1,7 +1,8 @@
 # Architecture
 
 Planned for M1–M4. Built so far: the robot description and the MuJoCo scene (`so101_mtc_description`, the TF
-frames below) and the MoveIt config with the controllers (`so101_mtc_moveit_config`). The stack follows
+frames below), the MoveIt config with the controllers (`so101_mtc_moveit_config`) and the launch that starts the
+simulator, the controllers, `move_group` and RViz in order (`so101_mtc_bringup`). The stack follows
 [ADR 0002](decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC from
 apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow
 [ADR 0003](decisions/0003-ik_and_grasp_poses.md).
