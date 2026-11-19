@@ -2,15 +2,17 @@
 
 Start the simulation first (so101_mtc_bringup's sim.launch.py, alias so101_mtc), then:
 
-    ros2 launch so101_mtc_task pick_place.launch.py [execute:=false] [run_at_start:=false]
+    ros2 launch so101_mtc_task pick_place.launch.py [execute:=false] [run_at_start:=false] [camera:=true]
 
 The node loads the robot as move_group does (MoveItConfigsBuilder), plans and executes one pick and place at start-up
 to the target of config/pick_place.yaml, then serves ~/pick_place (so101_mtc_interfaces/srv/PickPlace) for more runs.
-RViz's MTC panel shows the stages and the solutions.
+RViz's MTC panel shows the stages and the solutions. With camera:=true, the block's pose comes from the fixed camera:
+the launch also starts so101_mtc_perception_ros's block_detector, and the task reads /block_pose.
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -29,11 +31,18 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("execute", default_value="true", description="Execute the plan; false: plan only"),
         DeclareLaunchArgument("run_at_start", default_value="true", description="One run at start-up"),
+        DeclareLaunchArgument("camera", default_value="false",
+                              description="The block's pose from the camera (block_detector), not the simulator"),
         Node(package="so101_mtc_task", executable="pick_place", output="screen",
              parameters=[moveit_config.to_dict(),
                          PathJoinSubstitution([config, "config", "grasp_poses.yaml"]),
                          PathJoinSubstitution([config, "config", "pick_place.yaml"]),
                          {"use_sim_time": True,
                           "pick_place.execute": switch("execute"),
-                          "pick_place.run_at_start": switch("run_at_start")}]),
+                          "pick_place.run_at_start": switch("run_at_start"),
+                          "pick_place.block_source": PythonExpression(
+                              ["'camera' if '", LaunchConfiguration("camera"),
+                               "'.strip().lower() in ('true', '1') else 'true_pose'"])}]),
+        Node(package="so101_mtc_perception_ros", executable="block_detector", output="screen",
+             parameters=[{"use_sim_time": True}], condition=IfCondition(LaunchConfiguration("camera"))),
     ])

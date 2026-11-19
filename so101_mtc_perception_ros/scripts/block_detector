@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""The block's pose from the fixed camera: see so101_mtc_perception_ros.block_detector."""
+from so101_mtc_perception_ros.block_detector import main
+
+if __name__ == "__main__":
+    main()

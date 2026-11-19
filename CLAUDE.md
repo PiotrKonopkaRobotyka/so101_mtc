@@ -12,7 +12,8 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 ## Packages in this repository
 
-- `so101_mtc_perception/` — plain Python, no `rclpy` (`COLCON_IGNORE`); `geometry`: pixel → ray → table plane.
+- `so101_mtc_perception/` — plain Python (`COLCON_IGNORE`): `geometry` (pixel → table plane), `detect` (the top
+  face by colour → pose); `so101_mtc_perception_ros/` installs it, node `block_detector` → `/block_pose`.
 - `so101_mtc_description/` — URDF xacro (upstream + `world`, table, `tcp`, camera, `ros2_control`), MuJoCo scene
   (`scene.xml.xacro` → `scene.xml` at build), `config/task.yaml` (project 1's block, area, target).
 - `so101_mtc_moveit_config/` — hand-written SRDF (`arm` → tcp, `gripper`), KDL, limits, OMPL, controllers, RViz.
@@ -20,22 +21,20 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - `so101_mtc_task/` — C++: library `grasp_poses` (ADR 0003's exactly reachable poses; facts from the model, values
   only in `config/grasp_poses.yaml`), MTC node `pick_place` (service `~/pick_place`, `config/pick_place.yaml`).
 - `so101_mtc_interfaces/` — `srv/PickPlace`. `so101_mtc_eval/` — plain Python (`COLCON_IGNORE`): draw, success
-  check, records; `so101_mtc_eval_ros/` installs it and runs the trials. Planned: `so101_mtc_perception_ros` (M3).
+  check, records; `so101_mtc_eval_ros/` installs it, `run_trials`, `measure_perception`.
 
 ## Third-party and attribution
 
 - Pinned in `so101_mtc.repos`, never modified, fetched into `src/` by `tools/fetch_models.py` (sparse, ~55 MB):
   SO-ARM100 `Simulation/SO101` (URDF `so101_new_calib`) and MuJoCo Menagerie `robotstudio_so101`, both Apache-2.0.
-- Reference only: `mycobot_mtc_pick_place_demo` in `~/code/learning/mycobot_ws` (BSD-3-Clause, Addison
-  Sears-Collins). Adapted code gets a "Based on …" header and keeps the BSD notice; never copy it unmarked.
+- Adapted (`mycobot_mtc_pick_place_demo`, MTC's stages; BSD-3-Clause): a "Based on …" header with the BSD notice.
 
 ## Build, run, check
 
 - Underlay `/opt/ros/jazzy` only, never `moveit_ws` (ADR 0002): MTC 0.1.8 and `mujoco_ros2_control` 0.1.2 from apt.
 - Build `colcon build` (needs the fetched models); run `ros2 launch so101_mtc_bringup sim.launch.py` (alias
-  `so101_mtc`; `headless`, `rviz`, `sim_speed_factor`), then `ros2 launch so101_mtc_task pick_place.launch.py`;
-  test `colcon test && colcon test-result --verbose` (~35 s).
-- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_<perception|eval>` (~1 s; apt numpy and pytest, pinned in CI).
+  `so101_mtc`), then `ros2 launch so101_mtc_task pick_place.launch.py [camera:=true]`; test `colcon test` (~35 s).
+- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_<perception|eval>` (~1 s; apt numpy, OpenCV and pytest, as CI).
 - Data in `DATA_DIR` (`~/data`) under `so101_mtc/`; checks and the trials' detached `run.sh`: `~/code/experiments/`.
 
 ## Decisions (`docs/decisions/`)
@@ -44,6 +43,7 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - 0002 Stack: MuJoCo (`mujoco_ros2_control`), MTC from apt, official SO-101 (URDF + Menagerie MJCF), apt-only Python.
 - 0003 IK and grasps: top-down, then tilted 15°/30°; exactly reachable poses for KDL; TCP in the URDF.
 - 0004 Evaluation protocol: project 1's check from the block's pose and TF, its draw, seeds, no target before M4.
+- 0005 Block detection: the top face by HSV threshold, `minAreaRect`, projected on its plane; `camera:=true`.
 
 ## Pitfalls
 
@@ -60,5 +60,5 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 ## Current milestone
 
-M2 done (ROB-51–53; README "Trials"). Next M3: the block's pose from the camera (`so101_mtc_perception` detection,
-`so101_mtc_perception_ros` node, the task's `camera:=true`), its error over the area; then M4's 50 episodes.
+M2 done (ROB-51–53), M3 done (camera pose, README "Block pose from the camera"). M4: 50 episodes with the camera
+(`~/code/experiments/so101_mtc_m4_episodes/run.sh`), then M5: README results, GIF, comparison with project 1.

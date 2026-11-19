@@ -11,6 +11,7 @@
 
   <depend>ament_index_cpp</depend>
   <depend>eigen</depend>
+  <depend>geometry_msgs</depend>
   <depend>moveit_core</depend>
   <depend>moveit_ros_planning</depend>
   <depend>moveit_ros_planning_interface</depend>
@@ -29,6 +30,7 @@
   <exec_depend>moveit_kinematics</exec_depend>
   <exec_depend>so101_mtc_description</exec_depend>
   <exec_depend>so101_mtc_moveit_config</exec_depend>
+  <exec_depend>so101_mtc_perception_ros</exec_depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_cmake_pytest</test_depend>

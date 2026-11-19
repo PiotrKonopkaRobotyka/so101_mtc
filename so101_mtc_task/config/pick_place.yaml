@@ -5,7 +5,10 @@
   ros__parameters:
     pick_place:
       block_id: block  # the block's body in MuJoCo and its collision object in MoveIt
+      block_source: true_pose  # true_pose: the simulator's (block_topic); camera: block_detector's (block_pose_topic)
       block_topic: /block/free_joint_states
+      block_pose_topic: /block_pose
+      max_pose_age: 1.0  # s of simulation time: an older pose may predate the block's reset
       target: [0.20, -0.10]  # x, y in world: where the run at start-up puts the block's centre
       run_at_start: true  # one run at start-up; the service ~/pick_place runs more
       execute: true  # false: plan only, the solutions show in RViz's MTC panel

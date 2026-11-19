@@ -43,7 +43,9 @@ simulation's state only (`/opt/ros/jazzy/share/mujoco_ros2_control_msgs/{msg,srv
    the block at least 55.2 mm from it, with a uniform yaw.
 3. **Trials:**
    - M2 runs 20 trials with seed 0, in one run;
-   - M4 runs 50 episodes with the same draw, its seeds fixed in M4.
+   - M4 runs 50 episodes with the same draw, its seeds fixed in M4. Update 2026-11-19: seed 1, one run, with the
+     block's pose from the camera (`camera:=true`, ADR 0005); its results go to `$DATA_DIR/so101_mtc/m4/`.
+     A trial without a fresh pose from the camera fails at the stage "perception".
 4. **One trial:**
    - **reset:** the gripper opens and the arm goes home through `move_group`; then the block is put down and settles
      for 1 s;
@@ -57,7 +59,9 @@ simulation's state only (`/opt/ros/jazzy/share/mujoco_ros2_control_msgs/{msg,srv
    - the median planning time and the median task time.
 
    The task time runs from the call to the task's end with the arm home. So it includes the planning and, after the
-   release, the retreat and the move home; the release itself is not timed.
+   release, the retreat and the move home. Update 2026-11-19 (M4): ADR 0001's time per pick and place ends at the
+   release, so the runner also times it: from the call to the gripper's first opening past 0.6 rad after it closed on
+   the block (`/joint_states`, simulation time).
 6. **Target:** none. ADR 0001 sets none before the first 50 episodes. M2's exit (ADR 0001, criterion 2) is this check,
    run in the simulator.
 7. **Records** (`so101_mtc_eval.records`): one CSV row per trial, written as the trial ends, and a JSON summary. Each

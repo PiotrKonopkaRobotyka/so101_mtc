@@ -17,7 +17,8 @@ ATTEMPTS = 100
 
 @dataclass(frozen=True)
 class Area:
-    """A ring sector around `centre` (x, y): distances `radius` (min, max) and azimuths `azimuth` (min, max) in degrees."""
+    """A ring sector around `centre` (x, y): distances `radius` (min, max) and azimuths `azimuth` (min, max), in
+    degrees."""
 
     centre: tuple
     radius: tuple

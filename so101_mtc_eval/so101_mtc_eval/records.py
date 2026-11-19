@@ -1,6 +1,7 @@
 """The records of a run of trials: one CSV row per trial, written as it ends, and the run's summary.
 
 A failure is sorted by the stage that lost the block (ADR 0001's stages, without perception in M2):
+- perception: the task got no fresh block pose (from the camera, in M3 and M4);
 - planning: MTC found no solution (IK and planning);
 - execution: move_group stopped while executing;
 - grasp: the task ran, but the block is still where it stood;
@@ -13,6 +14,21 @@ import re
 import statistics
 
 MOVED = 0.01  # m: a block farther than this from its start was picked up
+CLOSED, OPENED = 0.3, 0.6  # rad of the gripper: closed on the block below, released above (open is 1.2)
+
+
+def release_time(gripper, since):
+    """The release's time after `since`, from the gripper's (time, position) samples: its first opening past OPENED
+    after it closed on the block (below CLOSED); None without one."""
+    closed = False
+    for stamp, position in gripper:
+        if stamp < since:
+            continue
+        if position < CLOSED:
+            closed = True
+        elif closed and position > OPENED:
+            return stamp
+    return None
 
 
 @dataclass
@@ -33,6 +49,7 @@ class Row:
     planning_s: float
     execution_s: float
     total_s: float  # from the task's call to its end (the arm home), planning included
+    release_s: float  # from the task's call to the gripper opening over the target (simulation time), nan without
     task_success: bool  # MoveIt planned and executed
     success: bool  # the simulator's check
     stage: str  # where a failure lost the block, "" on success
@@ -48,7 +65,10 @@ def failure_stage(task_success, failed_stage, moved, success):
     if success:
         return ""
     if not task_success:
-        return "execution" if failed_stage.startswith("execution") else "planning"
+        for stage in ("perception", "execution"):
+            if failed_stage.startswith(stage):
+                return stage
+        return "planning"
     return "place" if moved else "grasp"
 
 
@@ -86,7 +106,8 @@ class Recorder:
 
 
 def wilson_interval(successes, trials, z=1.96):
-    """The 95 % Wilson score interval of a success rate (better than the normal one for small n or rates near 0 or 1)."""
+    """The 95 % Wilson score interval of a success rate (better than the normal one for small n or rates near 0
+    or 1)."""
     if trials == 0:
         return 0.0, 1.0
     rate = successes / trials
@@ -121,7 +142,10 @@ def summary(rows):
         "success_rate": successes / n if n else math.nan,
         "interval_95": [low, high],
         "failures_by_stage": stages,
-        "successes_by_grasp_tilt_deg": {key: {"successes": done, "trials": total} for key, (done, total) in by_tilt.items()},
+        "successes_by_grasp_tilt_deg": {key: {"successes": done, "trials": total}
+                                        for key, (done, total) in by_tilt.items()},
         "median_planning_s": median([row.planning_s for row in rows if row.planning_s > 0]),
         "median_total_s_of_executed": median([row.total_s for row in ran]),
+        "median_release_s_of_successes": median([row.release_s for row in rows
+                                                 if row.success and not math.isnan(row.release_s)]),
     }

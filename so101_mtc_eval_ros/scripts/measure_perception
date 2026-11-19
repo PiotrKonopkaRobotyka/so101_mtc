@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""The camera's block pose against the true one: see so101_mtc_eval_ros.measure_perception."""
+from so101_mtc_eval_ros.measure_perception import main
+
+if __name__ == "__main__":
+    main()
