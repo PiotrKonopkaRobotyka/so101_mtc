@@ -15,12 +15,12 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - `so101_mtc_perception/` — plain Python, no `rclpy` (`COLCON_IGNORE`); `geometry`: pixel → ray → table plane.
 - `so101_mtc_description/` — URDF xacro (upstream + `world`, table, `tcp`, camera, `ros2_control`), MuJoCo scene
   (`scene.xml.xacro` → `scene.xml` at build), `config/task.yaml` (project 1's block, area, target).
-- `so101_mtc_moveit_config/` — hand-written SRDF (`arm` base_link → tcp, `gripper`), KDL, limits, OMPL, controllers,
-  `move_group` with MTC's capability, RViz.
+- `so101_mtc_moveit_config/` — hand-written SRDF (`arm` → tcp, `gripper`), KDL, limits, OMPL, controllers, RViz.
 - `so101_mtc_bringup/` — `sim.launch.py` (MuJoCo → spawners by `OnProcessExit` → move_group + RViz), MuJoCo plugins.
 - `so101_mtc_task/` — C++: library `grasp_poses` (ADR 0003's exactly reachable poses; facts from the model, values
   only in `config/grasp_poses.yaml`), MTC node `pick_place` (service `~/pick_place`, `config/pick_place.yaml`).
-- `so101_mtc_interfaces/` — `srv/PickPlace`. Planned: `so101_mtc_perception_ros` (thin node, M3).
+- `so101_mtc_interfaces/` — `srv/PickPlace`. `so101_mtc_eval/` — plain Python (`COLCON_IGNORE`): draw, success
+  check, records; `so101_mtc_eval_ros/` installs it and runs the trials. Planned: `so101_mtc_perception_ros` (M3).
 
 ## Third-party and attribution
 
@@ -35,14 +35,16 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - Build `colcon build` (needs the fetched models); run `ros2 launch so101_mtc_bringup sim.launch.py` (alias
   `so101_mtc`; `headless`, `rviz`, `sim_speed_factor`), then `ros2 launch so101_mtc_task pick_place.launch.py`;
   test `colcon test && colcon test-result --verbose` (~35 s).
-- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_perception` (~1 s; numpy and pytest from apt, pinned in CI).
-- Data in `DATA_DIR` (default `~/data`) under `so101_mtc/`; spikes and sim checks: `~/code/experiments/so101_mtc_*`.
+- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_<perception|eval>` (~1 s; apt numpy and pytest, pinned in CI).
+- Data in `DATA_DIR` (default `~/data`) under `so101_mtc/`; spikes, sim checks and the trials' detached `run.sh`
+  (sim, node and runner; > 5 min): `~/code/experiments/so101_mtc_*`.
 
 ## Decisions (`docs/decisions/`)
 
 - 0001 Scope and exit criteria: M1 bringup, M2 MTC with the true pose, M3 camera, M4 50 episodes, M5 release.
 - 0002 Stack: MuJoCo (`mujoco_ros2_control`), MTC from apt, official SO-101 (URDF + Menagerie MJCF), apt-only Python.
 - 0003 IK and grasps: top-down, then tilted 15°/30°; exactly reachable poses for KDL; TCP in the URDF.
+- 0004 Evaluation protocol: project 1's check from the block's pose and TF, its draw, seeds, no target before M4.
 
 ## Pitfalls
 
@@ -54,11 +56,10 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
   `reset_world` with active controllers leaves the arm at its last command; rebuild after editing the scene or task.
 - Gripper: it stalls on the block at 0.065 rad short of `closed`, hence the start tolerance 0.2 rad. The tcp is the
   centre of a block pressed onto the fixed jaw: descend `approach_gap` towards the fixed jaw, or the jaw drags it.
-- MTC: free motions (`Connect`) plan the arm only (no SRDF group holds arm + gripper, which execution needs); never
-  move a world object in a stage callback (diff scenes share it): attach by message. JTC rejects MTC's end velocity
-  of ~1e-3 rad/s unless `allow_nonzero_velocity_at_trajectory_end`.
+- MTC: `Connect` plans the arm only (execution needs one SRDF group); attach by message, never move a world object in
+  a stage callback (diff scenes share it); JTC takes MTC's ~1e-3 rad/s end velocity only with `allow_nonzero_…`.
 
 ## Current milestone
 
-M2: ROB-51 and ROB-52 done (README "Grasp and place poses", "Pick and place with MTC"). Next ROB-53: trials with
-project 1's success check, an evaluation protocol ADR first, a reusable reset/draw/check for M4.
+M2 done (ROB-51–53; README "Trials"). Next M3: the block's pose from the camera (`so101_mtc_perception` detection,
+`so101_mtc_perception_ros` node, the task's `camera:=true`), its error over the area; then M4's 50 episodes.
