@@ -3,17 +3,16 @@ without a simulator and writes nothing."""
 import os
 import shutil
 import subprocess
-import tempfile
 
 
-def test_dry_run_with_default_arguments_lists_twenty_trials():
-    environment = dict(os.environ, DATA_DIR=tempfile.mkdtemp(prefix="tests_"))
+def test_dry_run_with_default_arguments_lists_twenty_trials(tmp_path):
+    environment = dict(os.environ, DATA_DIR=str(tmp_path))
     result = subprocess.run([shutil.which("ros2"), "run", "so101_mtc_eval_ros", "run_trials", "--dry-run"],
                             capture_output=True, text=True, timeout=60, env=environment)
     assert result.returncode == 0, result.stderr
     lines = [line for line in result.stdout.splitlines() if line.startswith("trial ")]
     assert len(lines) == 20
-    assert not os.listdir(environment["DATA_DIR"])
+    assert not any(tmp_path.iterdir())
 
 
 def test_run_writes_a_row_per_trial_and_the_summary(tmp_path, monkeypatch):
@@ -49,6 +48,9 @@ def test_run_writes_a_row_per_trial_and_the_summary(tmp_path, monkeypatch):
         def samples(self, since):
             return [Sample(since + 0.02 * i, *self.position, 0.0, 0.0, 0.3) for i in range(51)]
 
+        def release_time(self, since):
+            return since + 10.0
+
     monkeypatch.setattr(run_trials, "SETTLE", 0.0)
     monkeypatch.setattr(run_trials, "OBSERVE", 0.0)
     result = run_trials.run(3, 0, tmp_path, FakeRunner())
@@ -56,5 +58,6 @@ def test_run_writes_a_row_per_trial_and_the_summary(tmp_path, monkeypatch):
     (rows_file,) = tmp_path.glob("trials_seed0_*.csv")
     rows = list(csv.DictReader(rows_file.open()))
     assert [row["success"] for row in rows] == ["True"] * 3 and rows[0]["grasp_tilt_deg"] == "15.0"
+    assert abs(float(rows[0]["release_s"]) - 10.0) < 1e-6
     (summary_file,) = tmp_path.glob("trials_seed0_*.json")
     assert json.loads(summary_file.read_text())["success_rate"] == 1.0

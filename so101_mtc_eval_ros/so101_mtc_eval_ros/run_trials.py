@@ -8,9 +8,10 @@ run_at_start:=false). The trials come from config/task.yaml's area and the seed 
 2. the task node picks the block and places it on the target (/pick_place/pick_place);
 3. one second of the block's pose, with the tcp's position from TF, decides the success (so101_mtc_eval.success).
 
-Each trial appends a row to $DATA_DIR/so101_mtc/m2/<run>.csv as it ends; <run>.json gets the summary.
+Each trial appends a row to $DATA_DIR/so101_mtc/<out>/<run>.csv as it ends (out: m2 by default, m4 for M4's
+episodes); <run>.json gets the summary.
 
-    ros2 run so101_mtc_eval_ros run_trials [--trials 20] [--seed 0] [--dry-run]
+    ros2 run so101_mtc_eval_ros run_trials [--trials 20] [--seed 0] [--out m2] [--dry-run]
 """
 import argparse
 import json
@@ -28,7 +29,8 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 
 from so101_mtc_eval.draw import Area, draw_trials
-from so101_mtc_eval.records import (MOVED, Recorder, Row, failure_stage, grasp_of, misalignment_deg, summary)
+from so101_mtc_eval.records import (MOVED, Recorder, Row, failure_stage, grasp_of, misalignment_deg, release_time,
+                                    summary)
 from so101_mtc_eval.success import Criteria, Sample, check
 
 OBSERVE = 1.0  # s of the block's pose after the task
@@ -67,19 +69,22 @@ def wait(future, timeout):
 class Runner:
     """The ROS side: clients, the block's pose and the tcp's position; one call per step of a trial."""
 
-    def __init__(self):
+    def __init__(self, need_task=True):
         import rclpy
         from mujoco_ros2_control_msgs.msg import FreeJointStateArray
         from mujoco_ros2_control_msgs.srv import SetFreeJointState
         from moveit_msgs.action import MoveGroup
         from rclpy.action import ActionClient
         from rclpy.executors import MultiThreadedExecutor
+        from sensor_msgs.msg import JointState
         from so101_mtc_interfaces.srv import PickPlace
         from tf2_ros import Buffer, TransformListener
 
         self.node = rclpy.create_node("run_trials")
         self.blocks = deque(maxlen=500)  # (time, position, quaternion) of the block, 10 s at 50 Hz
         self.node.create_subscription(FreeJointStateArray, "/block/free_joint_states", self._on_block, 10)
+        self.gripper = deque(maxlen=12000)  # (time, position) of the gripper joint, 2 min at 100 Hz
+        self.node.create_subscription(JointState, "/joint_states", self._on_joints, 10)
         self.set_block = self.node.create_client(SetFreeJointState, "/mujoco_ros2_control_node/set_free_joint_state")
         self.pick_place = self.node.create_client(PickPlace, "/pick_place/pick_place")
         self.move_group = ActionClient(self.node, MoveGroup, "/move_action")
@@ -88,7 +93,8 @@ class Runner:
         self.executor = MultiThreadedExecutor()
         self.executor.add_node(self.node)
         threading.Thread(target=self.executor.spin, daemon=True).start()
-        for client, name in ((self.set_block, "set_free_joint_state"), (self.pick_place, "pick_place")):
+        clients = [(self.set_block, "set_free_joint_state")] + ([(self.pick_place, "pick_place")] if need_task else [])
+        for client, name in clients:
             if not client.wait_for_service(timeout_sec=60.0):
                 raise RuntimeError(f"{name} is not available: start the simulation and the task node")
         if not self.move_group.wait_for_server(timeout_sec=60.0):
@@ -101,8 +107,17 @@ class Runner:
                 stamp = message.header.stamp.sec + 1e-9 * message.header.stamp.nanosec
                 self.blocks.append((stamp, np.array([p.x, p.y, p.z]), np.array([q.x, q.y, q.z, q.w])))
 
+    def _on_joints(self, message):
+        if "gripper" in message.name:
+            stamp = message.header.stamp.sec + 1e-9 * message.header.stamp.nanosec
+            self.gripper.append((stamp, message.position[message.name.index("gripper")]))
+
     def block(self):
         return self.blocks[-1] if self.blocks else None
+
+    def release_time(self, since):
+        """Simulation time of the release after `since` (so101_mtc_eval.records.release_time)."""
+        return release_time(list(self.gripper), since)
 
     def tcp(self):
         from rclpy.time import Time
@@ -178,13 +193,14 @@ def run(trials, seed, out_dir, runner):
         time.sleep(SETTLE)
         start = runner.block()
         # 2. the task
-        started = time.monotonic()
+        started, started_sim = time.monotonic(), runner.block()[0]
         try:
             response = runner.run_task(trial.target_x, trial.target_y)
             task_success, failed_stage = response.success, response.failed_stage.strip()
         except TimeoutError:
             response, task_success, failed_stage = None, False, f"no answer within {TASK_TIMEOUT} s"
         total = time.monotonic() - started
+        released = runner.release_time(started_sim)
         # 3. the check, over the block's poses after the task
         ended = runner.block()[0]
         time.sleep(OBSERVE)
@@ -202,6 +218,7 @@ def run(trials, seed, out_dir, runner):
                                     if tilt > 0 else (0.0 if tilt == 0 else math.nan)),
             place=response.place if response else "", planning_s=response.planning_time if response else math.nan,
             execution_s=response.execution_time if response else math.nan, total_s=total,
+            release_s=released - started_sim if released else math.nan,
             task_success=task_success, success=success,
             stage=failure_stage(task_success, failed_stage, moved, success),
             failed=("" if reset else "reset failed; ")
@@ -222,9 +239,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--trials", type=int, default=20)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--out", default="m2", help="the results' folder under $DATA_DIR/so101_mtc/ (m2, m4)")
     parser.add_argument("--dry-run", action="store_true", help="print the trials only, without ROS")
     args, ros_args = parser.parse_known_args(argv)
-    out_dir = Path(os.environ.get("DATA_DIR", "~/data")).expanduser() / "so101_mtc" / "m2"
+    out_dir = Path(os.environ.get("DATA_DIR", "~/data")).expanduser() / "so101_mtc" / args.out
     if args.dry_run:
         task = load_task()
         area = Area.from_task(task)

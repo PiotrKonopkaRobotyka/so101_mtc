@@ -24,6 +24,8 @@ reachable poses for MoveIt's default KDL.
 ## Packages
 
 - `so101_mtc_perception/` — block detection and camera geometry; plain Python without ROS, tested in CI.
+  `so101_mtc_perception_ros/` — the node `block_detector`: the camera's image → `/block_pose`
+  ([Block pose from the camera](#block-pose-from-the-camera)).
 - `so101_mtc_description/` — the official SO-101 with `world`, the table, the TCP and the fixed camera (URDF), the
   MuJoCo scene with the block, and the task's parameters; see
   [Robot description and scene](#robot-description-and-scene).
@@ -35,10 +37,9 @@ reachable poses for MoveIt's default KDL.
   reaches exactly ([Grasp and place poses](#grasp-and-place-poses)) and the MTC node that picks the block and places
   it on a target ([Pick and place with MTC](#pick-and-place-with-mtc)).
 - `so101_mtc_interfaces/` — the service `PickPlace`: one pick and place on request.
-- `so101_mtc_eval/` — the trials without ROS: the draw of the block and the target, project 1's success check and
-  the records with their summary; plain Python, tested in CI. `so101_mtc_eval_ros/` — the trial runner
-  ([Trials](#trials)), which also installs `so101_mtc_eval` for the nodes.
-- Planned: `so101_mtc_perception_ros` (a thin node: image → block pose).
+- `so101_mtc_eval/` — the trials without ROS: the draw of the block and the target, project 1's success check, the
+  records with their summary and the camera's errors; plain Python, tested in CI. `so101_mtc_eval_ros/` — the trial
+  runner ([Trials](#trials)) and the camera's measurement (`measure_perception`); it installs `so101_mtc_eval`.
 
 ## Workspace setup
 
@@ -265,18 +266,42 @@ jaws (ADR 0003's open point); all three ended on the target. The block ended 5.1
 (median; at most 12.3 mm). Planning took 1.5 s (median; at most 1.9 s), a whole pick and place 14.2 s (median; from
 the call to the arm back home).
 
+## Block pose from the camera
+
+With `camera:=true`, the task takes the block's pose from the fixed camera instead of the simulator
+([ADR 0005](docs/decisions/0005-block_detection_from_the_fixed_camera.md)):
+
+```bash
+ros2 launch so101_mtc_task pick_place.launch.py camera:=true   # also starts block_detector
+```
+
+- **Detection** (`so101_mtc_perception.detect`, OpenCV 4.6 from apt): the block is red on a grey table. A hue,
+  saturation and brightness threshold keeps its lit top face, without the darker sides that the camera sees at an
+  angle. `minAreaRect` fits the face's square.
+- **Pose:** the face's centre and two corners go through `pixel_to_plane` onto the plane of the top face, 25 mm
+  above the table. That gives the block's position and its yaw modulo 90°; the camera's pose comes from TF and its K
+  from `camera_info`.
+- **The node** (`block_detector`) publishes `/block_pose` with the image's stamp. The task uses a pose only if it is
+  at most 1 s old, so a pose from before a reset of the block never counts.
+
+The error over the block area (`ros2 run so101_mtc_eval_ros measure_perception --seed 1`, the 50 blocks of
+ADR 0004's draw with seed 1, the arm at home): **all 50 found; position error 0.91 mm median, 1.15 mm at the 95th
+percentile, 1.19 mm at most; yaw error 0.25° median, 1.4° at the 95th percentile, 2.6° at most.** A pixel covers
+about 1.2 mm of the table.
+
 ## Tests
 
-The ROS-free cores need only numpy and pytest (on Ubuntu 24.04: `sudo apt install python3-numpy python3-pytest`);
-each has its own `pyproject.toml`, so each runs on its own:
+The ROS-free cores need only numpy, OpenCV and pytest (on Ubuntu 24.04:
+`sudo apt install python3-numpy python3-opencv python3-pytest`); each has its own `pyproject.toml`, so each runs on
+its own:
 
 ```bash
 python3 -m pytest so101_mtc_perception
 python3 -m pytest so101_mtc_eval
 ```
 
-GitHub Actions runs the same tests, with the same numpy and pytest versions, on every push to `main` and every pull
-request ([tests.yml](.github/workflows/tests.yml)).
+GitHub Actions runs the same tests with Ubuntu 24.04's apt packages, the versions this project uses, on every push
+to `main` and every pull request ([tests.yml](.github/workflows/tests.yml)).
 
 The ROS packages are tested from the workspace, after the build (ROS 2 Jazzy; not in CI before M5):
 
@@ -292,8 +317,24 @@ the start pose), no collision in them but collisions where the arm reaches throu
 agree with MoveIt's mapping. The bringup's test loads the launch file and checks that the MuJoCo plugins name a
 camera, a frame and a body that exist. `so101_mtc_task`'s gtest checks the pose generator against MoveIt's KDL and FK
 over the task area ([Grasp and place poses](#grasp-and-place-poses)); its pytest loads the pick and place launch file
-and checks that the parameter files hold every parameter the node reads. `so101_mtc_eval_ros`'s test calls
-`run_trials --dry-run` as a person would.
+and checks that the parameter files hold every parameter the node reads. `so101_mtc_eval_ros`'s tests call
+`run_trials --dry-run` and `measure_perception --dry-run` as a person would and run the trials' loop with a stand-in
+for ROS; `so101_mtc_perception_ros`'s test turns a synthetic image message into the block's pose.
+
+## Limitations
+
+- **Simulation only.** MuJoCo with the Menagerie model; no real SO-101 was used (ADR 0001's non-goals). The gripper's
+  force, the friction and the camera are the simulator's.
+- **One red block on a grey table.** The detection is a colour threshold for this scene: another colour, an
+  occluded block, a change of light or clutter needs new thresholds or a learned detector. The pose is read with the
+  arm at home, out of the camera's view.
+- **The success check** follows project 1's, but from the block's pose and the hand's distance instead of contact
+  forces, which ROS does not show (ADR 0004).
+- **Five arm joints.** Only poses with the roll axis in the arm plane are reachable: top-down near the base, tilted
+  15° or 30° further out, with horizontal jaws when tilted (ADR 0003). The task area stays within 0.12–0.34 m of the
+  shoulder_pan axis, as project 1's.
+- **Planned, then executed open loop.** Nothing re-plans when the block slips or the grasp misses; the success check
+  only reports it. The motions run at half the joints' speed limits.
 
 ## License and third-party code
 

@@ -19,17 +19,13 @@ jobs:
         with:
           path: src/so101_mtc
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      # numpy and pytest as apt has them on Ubuntu 24.04: the versions the tests run with on the laptop
-      - name: Install so101_mtc_perception and so101_mtc_eval
+      # numpy, OpenCV and pytest from Ubuntu 24.04's apt: the versions the laptop runs (ADR 0002)
+      - name: Install the apt packages
         run: >
-          pip install "numpy==1.26.4" "pytest==7.4.4" -e "src/so101_mtc/so101_mtc_perception[dev]"
-          -e "src/so101_mtc/so101_mtc_eval[dev]"
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends
+          python3-numpy python3-opencv python3-pytest
 
       - name: Run the tests
         run: |
-          python -m pytest -rs src/so101_mtc/so101_mtc_perception
-          python -m pytest -rs src/so101_mtc/so101_mtc_eval
+          /usr/bin/python3 -m pytest -rs src/so101_mtc/so101_mtc_perception
+          /usr/bin/python3 -m pytest -rs src/so101_mtc/so101_mtc_eval

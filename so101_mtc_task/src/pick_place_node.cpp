@@ -4,6 +4,7 @@
 //
 // The node keeps the robot model and serves ~/pick_place (so101_mtc_interfaces/srv/PickPlace): each call reads the
 // block's latest pose, puts the block into the planning scene, plans the task and executes the cheapest solution.
+// The pose comes from the simulator (block_source true_pose, M2) or from the camera's block_detector (camera, M3).
 // With pick_place.run_at_start, it does one run at start-up, to the target of its parameters.
 //
 // Based on mtc_node.cpp of mycobot_mtc_pick_place_demo, from Automatic Addison's myCobot 280 tutorial
@@ -36,6 +37,7 @@
 #include <vector>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <moveit/planning_scene/planning_scene.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.hpp>
 #include <moveit/robot_model_loader/robot_model_loader.hpp>
@@ -108,10 +110,25 @@ public:
     runs_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     rclcpp::SubscriptionOptions subscription_options;
     subscription_options.callback_group = blocks_;
-    block_subscription_ = create_subscription<mujoco_ros2_control_msgs::msg::FreeJointStateArray>(
-        parameter<std::string>("block_topic"), rclcpp::SensorDataQoS(),
-        [this](const mujoco_ros2_control_msgs::msg::FreeJointStateArray& message) { onBlock(message); },
-        subscription_options);
+    const std::string source = parameter<std::string>("block_source");
+    if (source == "true_pose")
+    {
+      block_subscription_ = create_subscription<mujoco_ros2_control_msgs::msg::FreeJointStateArray>(
+          parameter<std::string>("block_topic"), rclcpp::SensorDataQoS(),
+          [this](const mujoco_ros2_control_msgs::msg::FreeJointStateArray& message) { onBlock(message); },
+          subscription_options);
+    }
+    else if (source == "camera")
+    {
+      // block_detector publishes reliable and latched (transient local)
+      camera_subscription_ = create_subscription<geometry_msgs::msg::PoseStamped>(
+          parameter<std::string>("block_pose_topic"), rclcpp::QoS(1).reliable().transient_local(),
+          [this](const geometry_msgs::msg::PoseStamped& message) { onCameraPose(message); }, subscription_options);
+    }
+    else
+    {
+      throw std::invalid_argument("pick_place.block_source must be true_pose or camera, not " + source);
+    }
     service_ = create_service<PickPlace>(
         "~/pick_place",
         [this](const std::shared_ptr<PickPlace::Request> request, std::shared_ptr<PickPlace::Response> response) {
@@ -157,8 +174,20 @@ private:
         RCLCPP_INFO_ONCE(get_logger(), "The block's pose arrives on %s", block_subscription_->get_topic_name());
         std::lock_guard<std::mutex> lock(mutex_);
         block_ = pose;
+        block_stamp_ = rclcpp::Time(message.header.stamp, RCL_ROS_TIME);
       }
     }
+  }
+
+  void onCameraPose(const geometry_msgs::msg::PoseStamped& message)
+  {
+    Eigen::Isometry3d pose;
+    tf2::fromMsg(message.pose, pose);
+    RCLCPP_INFO_ONCE(get_logger(), "The block's pose arrives from the camera on %s",
+                     camera_subscription_->get_topic_name());
+    std::lock_guard<std::mutex> lock(mutex_);
+    block_ = pose;
+    block_stamp_ = rclcpp::Time(message.header.stamp, RCL_ROS_TIME);
   }
 
   std::string block_id()
@@ -166,15 +195,17 @@ private:
     return parameter<std::string>("block_id");
   }
 
-  /// The block's latest pose, waiting up to `timeout` for the first one.
+  /// The block's latest pose no older than max_pose_age (simulation time), so that a pose from before a reset of the
+  /// block is never used; waits up to `timeout` for one.
   std::optional<Eigen::Isometry3d> latestBlock(std::chrono::seconds timeout)
   {
+    const rclcpp::Duration max_age = rclcpp::Duration::from_seconds(parameter<double>("max_pose_age"));
     const auto end = std::chrono::steady_clock::now() + timeout;
     while (rclcpp::ok() && std::chrono::steady_clock::now() < end)
     {
       {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (block_)
+        if (block_ && block_stamp_ && now() - *block_stamp_ <= max_age)
         {
           return block_;
         }
@@ -380,7 +411,11 @@ private:
     const std::optional<Eigen::Isometry3d> block = latestBlock(std::chrono::seconds(10));
     if (!block)
     {
-      return fail("no block pose on " + parameter<std::string>("block_topic"));
+      const bool camera = parameter<std::string>("block_source") == "camera";
+      char age[32];
+      std::snprintf(age, sizeof(age), "%.1f", parameter<double>("max_pose_age"));
+      return fail(std::string("perception: no block pose younger than ") + age + " s on " +
+                  parameter<std::string>(camera ? "block_pose_topic" : "block_topic"));
     }
     const Eigen::Vector3d centre = block->translation();
     const double yaw = std::atan2(block->linear()(1, 0), block->linear()(0, 0));
@@ -451,7 +486,9 @@ private:
   rclcpp::CallbackGroup::SharedPtr runs_;    // the runs: the service and the run at start-up, one at a time
   std::mutex mutex_;
   std::optional<Eigen::Isometry3d> block_;
+  std::optional<rclcpp::Time> block_stamp_;
   rclcpp::Subscription<mujoco_ros2_control_msgs::msg::FreeJointStateArray>::SharedPtr block_subscription_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr camera_subscription_;
   rclcpp::Service<PickPlace>::SharedPtr service_;
   rclcpp::TimerBase::SharedPtr start_timer_;
   std::unique_ptr<mtc::Task> task_;  // the last task stays, so that RViz's MTC panel can inspect it

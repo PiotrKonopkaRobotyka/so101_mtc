@@ -1,11 +1,12 @@
 # Architecture
 
-Planned for M1–M4. Built so far: the robot description and the MuJoCo scene (`so101_mtc_description`, the TF
+Built for M1–M4: the robot description and the MuJoCo scene (`so101_mtc_description`, the TF
 frames below), the MoveIt config with the controllers (`so101_mtc_moveit_config`), the launch that starts the
 simulator, the controllers, `move_group` and RViz in order (`so101_mtc_bringup`), the generator of exactly
 reachable grasp and place poses (`so101_mtc_task`'s library `grasp_poses`), the MTC task that uses them (its node
 `pick_place`, with the block's true pose) and the trial runner with project 1's success check (`so101_mtc_eval_ros`,
-ADR 0004). The stack follows
+ADR 0004), and the camera's block pose (`so101_mtc_perception_ros`'s `block_detector`, ADR 0005). The stack
+follows
 [ADR 0002](decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC from
 apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow
 [ADR 0003](decisions/0003-ik_and_grasp_poses.md).
@@ -51,9 +52,11 @@ flowchart TB
   and the block's true pose: the input of the MTC task in M2, before the camera, and the success check of the
   episodes in M4. Its services `reset_world` and `set_free_joint_state` (under `/mujoco_ros2_control_node/`) reset an
   episode.
-- **block_detector** (`so101_mtc_perception_ros`, M3): a thin node. It turns the image, `camera_info` and the
-  camera's TF into numpy and calls `so101_mtc_perception`: a colour mask and a contour give the block's pixel and
-  yaw, `geometry.pixel_to_plane` the point on the table. It publishes `/block_pose`.
+- **block_detector** (`so101_mtc_perception_ros`, M3, ADR 0005): a thin node. It turns the image, `camera_info` and
+  the camera's TF into numpy and calls `so101_mtc_perception`: a colour and brightness mask keeps the block's top face,
+  `minAreaRect` fits it, and `geometry.pixel_to_plane` puts its centre and corners on the plane of the top face, which
+  gives the block's position and yaw. It publishes `/block_pose`; `pick_place.launch.py camera:=true` starts it and
+  makes the task read it.
 - **pick_place** (`so101_mtc_task`, C++, M2): on each call of its service `~/pick_place` (and once at start-up), it
   takes the block's latest pose, adds the block to the planning scene as a collision object, plans the MTC task and
   sends the cheapest solution to `move_group` for execution. Its grasp and place poses come from the library
@@ -94,8 +97,8 @@ flowchart TB
 
 ### One pick and place
 
-1. Perception (M3): the camera image → `block_detector` → `/block_pose` (the position on the table and the yaw). In M2
-   the simulator's true pose takes its place.
+1. Perception (M3): the camera image → `block_detector` → `/block_pose` (the position on the table and the yaw); the
+   task takes a pose at most 1 s old. Without `camera:=true`, the simulator's true pose takes its place (M2).
 2. Planning: `pick_place` puts the block into the planning scene and plans the MTC task: current state → open the
    gripper → move to the grasp → approach → grasp poses reachable with 5 joints (ADR 0003: our generator of exactly
    reachable poses, `GeneratePose` + `ComputeIK` with KDL; top-down near the base, tilted further out) → close →
