@@ -173,8 +173,7 @@ def run(trials, seed, out_dir, runner):
     print(f"{trials} trials, seed {seed}: {out_dir / stem}.csv", flush=True)
     for trial in draw_trials(area, size, trials, seed):
         # 1. reset: release whatever the hand holds, go home, put the block down
-        runner.move("gripper", open_gripper)
-        runner.move("arm", home)
+        reset = runner.move("gripper", open_gripper) and runner.move("arm", home)
         runner.put_block(trial.block_x, trial.block_y, trial.block_yaw, size / 2)
         time.sleep(SETTLE)
         start = runner.block()
@@ -205,7 +204,8 @@ def run(trials, seed, out_dir, runner):
             execution_s=response.execution_time if response else math.nan, total_s=total,
             task_success=task_success, success=success,
             stage=failure_stage(task_success, failed_stage, moved, success),
-            failed=(failed_stage if not task_success else "; ".join(failed)).replace("\n", " | "),
+            failed=("" if reset else "reset failed; ")
+            + (failed_stage if not task_success else "; ".join(failed)).replace("\n", " | "),
             end_x=float(end[0]), end_y=float(end[1]), end_z=float(end[2]),
             end_offset=math.hypot(end[0] - trial.target_x, end[1] - trial.target_y))
         recorder.add(row)

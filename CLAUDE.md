@@ -36,8 +36,7 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
   `so101_mtc`; `headless`, `rviz`, `sim_speed_factor`), then `ros2 launch so101_mtc_task pick_place.launch.py`;
   test `colcon test && colcon test-result --verbose` (~35 s).
 - Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_<perception|eval>` (~1 s; apt numpy and pytest, pinned in CI).
-- Data in `DATA_DIR` (default `~/data`) under `so101_mtc/`; spikes, sim checks and the trials' detached `run.sh`
-  (sim, node and runner; > 5 min): `~/code/experiments/so101_mtc_*`.
+- Data in `DATA_DIR` (`~/data`) under `so101_mtc/`; checks and the trials' detached `run.sh`: `~/code/experiments/`.
 
 ## Decisions (`docs/decisions/`)
 

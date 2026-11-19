@@ -260,7 +260,7 @@ ros2 run so101_mtc_eval_ros run_trials --trials 20 --seed 0   # about 18 s per t
 ```
 
 **M2 result** (20 trials, seed 0): **20 of 20 succeeded**, 95 % Wilson interval 84–100 %. By grasp family: top-down
-12 of 12, tilted 15° 6 of 6, tilted 30° 2 of 2. Among the tilted grasps, three blocks were turned 20–38° against the
+12 of 12, tilted 15° 6 of 6, tilted 30° 2 of 2. Among the tilted grasps, three blocks were turned 27–38° against the
 jaws (ADR 0003's open point); all three ended on the target. The block ended 5.1 mm from the target's centre
 (median; at most 12.3 mm). Planning took 1.5 s (median; at most 1.9 s), a whole pick and place 14.2 s (median; from
 the call to the arm back home).

@@ -22,11 +22,12 @@ when, for 0.2 s without a break, all of these hold:
 
 It draws the disc first, its distance from the spawn centre and its azimuth uniformly. Then it draws the cube the same
 way until the cube lies at least 37.5 mm plus its bounding radius (half its footprint's diagonal) from the disc's
-centre, within 100 attempts, with a uniform yaw (`mujoco/pick_and_place.py:376-443`,
-`config.py:1406`, `mujoco/spawn_utils.py:84,151-172`).
+centre, within 100 attempts, with a uniform yaw (`mujoco/pick_and_place.py:376-443`, the attempts at :430;
+`config.py:1403,1443-1446`; `mujoco/spawn_utils.py:84,151-172`).
 
 This project sees the simulation through ROS: the block's pose at 50 Hz (`/block/free_joint_states`) and TF, but no
-contact forces.
+contact forces: `mujoco_ros2_control_msgs` 0.1.2 has messages for free-joint states, external wrenches and the
+simulation's state only (`/opt/ros/jazzy/share/mujoco_ros2_control_msgs/{msg,srv}`).
 
 ## Decision
 
@@ -70,5 +71,11 @@ contact forces.
 - **Coverage:** grasp, place, the families and ADR 0003's open point all come from the same rows. Each row carries the
   grasp's tilt and, for tilted grasps, how far the block's sides were turned against the jaws.
 - **Recovery:** a trial that fails mid-motion leaves the arm anywhere; the reset brings it home before the next trial.
+  A reset that fails is noted in the trial's row.
+- **The tcp:** read once from TF at the end of the second of poses, for all of them; the arm is home by then.
+- **Packaging:** `so101_mtc_eval` is plain Python with its own `pyproject.toml`, tested in CI, and colcon ignores it.
+  ADR 0002 rules out pip and a venv, so `so101_mtc_eval_ros` installs it with `ament_python_install_package` from
+  `../so101_mtc_eval`. The ROS package therefore builds only inside this repository's layout. M3's perception does
+  the same.
 - **M4** keeps the draw, the check and the records. It changes the number of episodes and, from M3, the block's pose,
   which comes from the camera.

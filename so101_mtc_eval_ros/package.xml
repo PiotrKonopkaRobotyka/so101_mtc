@@ -23,6 +23,7 @@
   <exec_depend>tf2_ros</exec_depend>
 
   <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ros2run</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

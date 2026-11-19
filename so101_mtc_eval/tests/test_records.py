@@ -63,5 +63,13 @@ def test_summary_and_the_csv_file():
                                                     "15": {"successes": 1, "trials": 2}}
 
 
+def test_medians_of_an_even_count_lie_between_the_middle_values():
+    rows = [row(0, True), row(1, True)]
+    rows[0].planning_s, rows[1].planning_s = 1.0, 2.0
+    rows[0].total_s, rows[1].total_s = 10.0, 20.0
+    result = summary(rows)
+    assert result["median_planning_s"] == 1.5 and result["median_total_s_of_executed"] == 15.0
+
+
 def test_tests_write_under_the_temporary_data_dir():
     assert "tests_" in os.environ["DATA_DIR"]

@@ -2,14 +2,15 @@
 
 so101-nexus 0.11.0's `MuJoCoPickAndPlace-v2` (project 1's ADR 0009) counts a success when, for 0.2 s without a break,
 the block's footprint centre lies on the target disc (5 cm radius), the table carries at least 90 % of its weight,
-the robot and anything else push on it with at most 1 mN, and it is still (at most 0.01 m/s and 0.5 rad/s); the
+the robot and anything else push on it with at most max(1 mN, 1 % of its weight), and it is still (at most
+0.01 m/s and 0.5 rad/s); the
 gripper must have let go. ROS gives the block's pose and velocity but no contact forces, so here:
 
 - on the disc: the block's centre (its footprint's centre when it rests on a face) within `disc_radius` of the target;
 - carried by the table: its centre within `height_tolerance` of half its edge above the table, which only a block
   resting on a face reaches (on an edge it stands 41 % higher), with nothing under it;
 - untouched: the tcp at least `release_distance` from the block's centre, out of the jaws' reach;
-- still: as project 1, from the block's twist.
+- still: as project 1, with the speeds from consecutive poses.
 
 What this misses: a block pressed down or held sideways by something other than the robot (nothing else is in the
 scene), and forces too small to move the block. See ADR 0004.

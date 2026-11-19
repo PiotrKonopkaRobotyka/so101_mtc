@@ -10,6 +10,7 @@ import csv
 from dataclasses import asdict, dataclass, fields
 import math
 import re
+import statistics
 
 MOVED = 0.01  # m: a block farther than this from its start was picked up
 
@@ -31,7 +32,7 @@ class Row:
     place: str
     planning_s: float
     execution_s: float
-    total_s: float  # from the start of the trial (the block reset) to the end of the task (the arm home)
+    total_s: float  # from the task's call to its end (the arm home), planning included
     task_success: bool  # MoveIt planned and executed
     success: bool  # the simulator's check
     stage: str  # where a failure lost the block, "" on success
@@ -112,8 +113,7 @@ def summary(rows):
     ran = [row for row in rows if row.task_success]
 
     def median(values):
-        values = sorted(values)
-        return values[len(values) // 2] if values else math.nan
+        return statistics.median(values) if values else math.nan
 
     return {
         "trials": n,
