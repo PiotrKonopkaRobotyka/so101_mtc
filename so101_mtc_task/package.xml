@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>so101_mtc_task</name>
+  <version>0.1.0</version>
+  <description>The pick and place task of so101_mtc: ADR 0003's generator of grasp and place poses that the 5-joint SO-101 reaches exactly, for MoveIt Task Constructor.</description>
+  <maintainer email="piotr.konopka.robotyka@gmail.com">Piotr Konopka</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>eigen</depend>
+  <depend>moveit_core</depend>
+  <depend>rclcpp</depend>
+
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_index_cpp</test_depend>
+  <test_depend>moveit_kinematics</test_depend>
+  <test_depend>moveit_ros_planning</test_depend>
+  <test_depend>so101_mtc_description</test_depend>
+  <test_depend>so101_mtc_moveit_config</test_depend>
+  <test_depend>xacro</test_depend>
+  <test_depend>yaml-cpp</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

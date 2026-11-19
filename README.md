@@ -11,7 +11,8 @@ metrics (success rate over 50 episodes, time per pick and place): imitation lear
 
 M1 One-command sim bringup done: one command starts MuJoCo with the robot, the table, the block and the camera, the
 controllers, MoveIt with MTC's capability and RViz ([Run the simulation](#run-the-simulation)). M2 (the MTC pick and
-place task with the block's true pose) comes next. The scope and the exit
+place task with the block's true pose) is under way: its grasp and place poses are done
+([Grasp and place poses](#grasp-and-place-poses)), the MTC task comes next. The scope and the exit
 criteria are fixed in [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md), the planned nodes, topics
 and TF frames in [docs/architecture.md](docs/architecture.md). The stack is fixed in
 [ADR 0002](docs/decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC
@@ -29,8 +30,9 @@ reachable poses for MoveIt's default KDL.
   OMPL, the ros2_control and MoveIt controllers, and `move_group` with MTC's capability; see
   [MoveIt config](#moveit-config).
 - `so101_mtc_bringup/` — one launch for everything: MuJoCo, the controllers in order, MoveIt and RViz.
-- Planned: `so101_mtc_task` (the MTC pick and place task in C++), `so101_mtc_perception_ros` (a thin node: image →
-  block pose).
+- `so101_mtc_task/` — the pick and place task in C++: the generator of grasp and place poses that the 5-joint arm
+  reaches exactly (see [Grasp and place poses](#grasp-and-place-poses)); the MTC task follows in M2.
+- Planned: `so101_mtc_perception_ros` (a thin node: image → block pose).
 
 ## Workspace setup
 
@@ -153,6 +155,47 @@ nothing, so the 6 "Never" pairs were checked on a dense grid of the joints betwe
 through `moveit_py`): the closest stays 8.9 mm apart within the joint limits. `--trials 0` does not skip the sampling;
 it marks pairs "Never" without testing them, some of which do collide.
 
+## Grasp and place poses
+
+The SO-101 has 5 arm joints. Its three pitch joints keep the `wrist_roll` axis in one vertical plane, which
+`shoulder_pan` turns, so the arm reaches a gripper pose only when the roll axis lies in that plane. Grasp poses
+sampled around the block (MTC's `GenerateGraspPose`) mostly miss it and have no IK solution. `so101_mtc_task`'s
+library `grasp_poses` builds the poses the arm reaches exactly ([ADR 0003](docs/decisions/0003-ik_and_grasp_poses.md)),
+which MTC will take through `GeneratePose` and `ComputeIK` with KDL:
+
+- **Plane azimuth in closed form:** the plane must hold the roll axis, which lies 3.9 mm from the `tcp`, and the
+  plane itself lies e = 0.18 mm from the `shoulder_pan` axis. For a point p of `gripper_link` that has to land on c,
+  the azimuth θ of the plane follows from `r sin(φ − θ) = p_x cos β − p_y sin β + e`, where (r, φ) is c about the pan
+  axis and β the jaw angle.
+- **Families by the distance from the `shoulder_pan` axis:** top-down up to 0.23 m, with the jaws facing the block's
+  sides (four directions); tilted 15° up to 0.29 m and 30° beyond, leaning away from the base, with the jaws
+  horizontal (two sides).
+- **Waypoints:** a grasp has a pre-grasp 5 cm back along the approach and a lift 5 cm up. A place has a pre-place 5 cm
+  up and a retreat 5 cm back along the approach.
+- **Jaw sides:** `wrist_roll` = β + 92.8° and stops at −157°/+163°, so a jaw direction in that gap uses the other
+  jaw side; the generator leaves such sides out.
+- **Approach gap:** the `tcp` is the centre of a block pressed onto the fixed jaw, so the descent stops with the `tcp`
+  3.6 mm towards the fixed jaw; otherwise the fixed jaw drags the block.
+- **Place height:** the held block keeps its pose in the gripper since the grasp, and it tilts when the place uses
+  another family than the grasp. The place puts the block's centre over the target and its lowest corner 3 mm above
+  the table.
+
+The kinematic facts come from the robot model at zero joint values: the pan axis, the plane's offset, `wrist_roll`'s
+zero and limits, the `tcp` and the fixed jaw's side. The generator throws when the model breaks its assumptions, for
+example non-parallel pitch axes. Everything else is in `config/grasp_poses.yaml`, its only source: the families, the
+distances, the gap and the clearance. The MTC node will load the same file.
+
+The test checks the poses against MoveIt itself, without a simulator. It loads our URDF and SRDF with KDL as
+`move_group` does, and asks for a collision-free solution (robot and table, gripper open) of every pose over the task
+area: the block every 5 mm and 5°, the target every 1 cm and 10°.
+
+- **Grasps:** 9405 IK solves (grasp, pre-grasp, lift), none failed. MoveIt's FK returns each pose within 0.01 mm and
+  0.0004°, and the predicted `wrist_roll` is the solution's.
+- **Places:** 5382 solves for blocks held after a top-down, a 15° and a 30° grasp, none failed.
+- **The gap:** all 265 jaw sides left out for `wrist_roll` have no solution.
+- **Family limits:** run with the limits of ADR 0003's map (0.24 m and 0.30 m), the same test failed only there: the
+  pre-grasp or the pre-place, 5 cm above, is out of reach. Hence 0.23 m and 0.29 m (ADR 0003's update).
+
 ## Tests
 
 The ROS-free core needs only numpy and pytest (on Ubuntu 24.04: `sudo apt install python3-numpy python3-pytest`):
@@ -167,7 +210,7 @@ request ([tests.yml](.github/workflows/tests.yml)).
 The ROS packages are tested from the workspace, after the build (ROS 2 Jazzy; not in CI before M5):
 
 ```bash
-colcon test --packages-up-to so101_mtc_bringup && colcon test-result --verbose
+colcon test && colcon test-result --verbose   # about 25 s, 20 of them so101_mtc_task's IK sweep
 ```
 
 The test expands the xacro, lets MuJoCo's `compile` load the scene, and checks that the two agree: the joints and
@@ -176,7 +219,8 @@ puts it; and that the table and the camera's view hold the whole task area. The 
 into MoveIt through `moveit_py`, without a simulator: the groups and the end effector, the named states (`home` is
 the start pose), no collision in them but collisions where the arm reaches through the table, and controllers that
 agree with MoveIt's mapping. The bringup's test loads the launch file and checks that the MuJoCo plugins name a
-camera, a frame and a body that exist.
+camera, a frame and a body that exist. `so101_mtc_task`'s gtest checks the pose generator against MoveIt's KDL and FK
+over the task area ([Grasp and place poses](#grasp-and-place-poses)).
 
 ## License and third-party code
 

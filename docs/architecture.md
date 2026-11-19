@@ -1,8 +1,9 @@
 # Architecture
 
 Planned for M1–M4. Built so far: the robot description and the MuJoCo scene (`so101_mtc_description`, the TF
-frames below), the MoveIt config with the controllers (`so101_mtc_moveit_config`) and the launch that starts the
-simulator, the controllers, `move_group` and RViz in order (`so101_mtc_bringup`). The stack follows
+frames below), the MoveIt config with the controllers (`so101_mtc_moveit_config`), the launch that starts the
+simulator, the controllers, `move_group` and RViz in order (`so101_mtc_bringup`), and the generator of exactly
+reachable grasp and place poses (`so101_mtc_task`'s library `grasp_poses`). The stack follows
 [ADR 0002](decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC from
 apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow
 [ADR 0003](decisions/0003-ik_and_grasp_poses.md).
@@ -52,7 +53,9 @@ flowchart TB
   camera's TF into numpy and calls `so101_mtc_perception`: a colour mask and a contour give the block's pixel and
   yaw, `geometry.pixel_to_plane` the point on the table. It publishes `/block_pose`.
 - **pick_place_task** (`so101_mtc_task`, C++, M2): adds the block to the planning scene as a collision object, plans
-  the MTC task and sends the solution to `move_group` for execution.
+  the MTC task and sends the solution to `move_group` for execution. Its grasp and place poses come from the library
+  `grasp_poses` (ADR 0003), which reads the arm's kinematic facts from the robot model and its values from
+  `config/grasp_poses.yaml`.
 - **move_group** (MoveIt 2 with our `so101_mtc_moveit_config`): the planning scene, the IK plugin, the planners, the
   MTC execution capability and trajectory execution through the controllers.
 - **ros2_control** (`so101_mtc_moveit_config/config/ros2_controllers.yaml`): `arm_controller` (`shoulder_pan`,
