@@ -18,9 +18,9 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - `so101_mtc_moveit_config/` — hand-written SRDF (`arm` base_link → tcp, `gripper`), KDL, limits, OMPL, controllers,
   `move_group` with MTC's capability, RViz.
 - `so101_mtc_bringup/` — `sim.launch.py` (MuJoCo → spawners by `OnProcessExit` → move_group + RViz), MuJoCo plugins.
-- `so101_mtc_task/` — C++ library `grasp_poses` (ADR 0003's exactly reachable grasp and place poses; facts from the
-  model, values only in `config/grasp_poses.yaml`); the MTC node comes with ROB-52.
-- Planned: `so101_mtc_perception_ros` (thin node, M3).
+- `so101_mtc_task/` — C++: library `grasp_poses` (ADR 0003's exactly reachable poses; facts from the model, values
+  only in `config/grasp_poses.yaml`), MTC node `pick_place` (service `~/pick_place`, `config/pick_place.yaml`).
+- `so101_mtc_interfaces/` — `srv/PickPlace`. Planned: `so101_mtc_perception_ros` (thin node, M3).
 
 ## Third-party and attribution
 
@@ -33,7 +33,8 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 - Underlay `/opt/ros/jazzy` only, never `moveit_ws` (ADR 0002): MTC 0.1.8 and `mujoco_ros2_control` 0.1.2 from apt.
 - Build `colcon build` (needs the fetched models); run `ros2 launch so101_mtc_bringup sim.launch.py` (alias
-  `so101_mtc`; `headless`, `rviz`, `sim_speed_factor`); test `colcon test && colcon test-result --verbose` (~25 s).
+  `so101_mtc`; `headless`, `rviz`, `sim_speed_factor`), then `ros2 launch so101_mtc_task pick_place.launch.py`;
+  test `colcon test && colcon test-result --verbose` (~35 s).
 - Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_perception` (~1 s; numpy and pytest from apt, pinned in CI).
 - Data in `DATA_DIR` (default `~/data`) under `so101_mtc/`; spikes and sim checks: `~/code/experiments/so101_mtc_*`.
 
@@ -47,17 +48,18 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 - MTC exists twice: apt 0.1.8 (ours) and source 0.1.4 in `moveit_ws` (other projects): never build or run with another
   overlay sourced. Upgrade ROS packages a whole sync at a time (ros2_control 4.46 changed its ABI).
-- 5 arm joints: a pose is reachable only with the `wrist_roll` axis in the arm plane, and the TCP is 3.9 mm off it.
-  Take poses from `grasp_poses`; `GenerateGraspPose` only as ADR 0003's top-down baseline, never `position_only_ik`.
-- `wrist_roll` = jaw angle + 92.8° within −157°/+163°: a top-down jaw direction in the gap uses the other jaw side.
+- 5 arm joints: a pose is reachable only with the `wrist_roll` axis (3.9 mm off the TCP) in the arm plane; take poses
+  from `grasp_poses`, never `position_only_ik`. `wrist_roll` = jaw angle + 92.8° within −157°/+163°.
 - MuJoCo: `<attach>` drops the model's `<option>` (copied into the scene); services under `/mujoco_ros2_control_node/`;
-  `reset_world` with active controllers leaves the arm at its last command. `scene.xml` is generated (rebuild after
-  editing `scene.xml.xacro` or `task.yaml`); the table and the camera are also in the URDF (the test compares them).
-- Gripper: the controller closes to `closed` (0.0) and stalls on the block at 0.065 rad; MTC plans from `closed`,
-  hence `allowed_start_tolerance_joints.gripper` 0.2. The tcp is the centre of a block pressed onto the fixed jaw:
-  descend 3.6 mm towards the fixed jaw (`approach_gap`), or the jaw drags the block.
+  `reset_world` with active controllers leaves the arm at its last command; rebuild after editing the scene or task.
+- Gripper: it stalls on the block at 0.065 rad short of `closed`, hence the start tolerance 0.2 rad. The tcp is the
+  centre of a block pressed onto the fixed jaw: descend `approach_gap` towards the fixed jaw, or the jaw drags it.
+- MTC: free motions (`Connect`) plan the arm only (no SRDF group holds arm + gripper, which execution needs); never
+  move a world object in a stage callback (diff scenes share it): attach by message. JTC rejects MTC's end velocity
+  of ~1e-3 rad/s unless `allow_nonzero_velocity_at_trajectory_end`.
+- rclcpp holds callback groups weakly: keep them as members, or their services and timers never run.
 
 ## Current milestone
 
-M2: ROB-51 done (`grasp_poses`, README "Grasp and place poses"). Next ROB-52: the MTC task (the myCobot demo's
-stages, poses from `grasp_poses`, the block from `/block/free_joint_states`), then ROB-53 (trials, success check).
+M2: ROB-51 and ROB-52 done (README "Grasp and place poses", "Pick and place with MTC"). Next ROB-53: trials with
+project 1's success check, an evaluation protocol ADR first, a reusable reset/draw/check for M4.

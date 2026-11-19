@@ -2,8 +2,9 @@
 
 Planned for M1–M4. Built so far: the robot description and the MuJoCo scene (`so101_mtc_description`, the TF
 frames below), the MoveIt config with the controllers (`so101_mtc_moveit_config`), the launch that starts the
-simulator, the controllers, `move_group` and RViz in order (`so101_mtc_bringup`), and the generator of exactly
-reachable grasp and place poses (`so101_mtc_task`'s library `grasp_poses`). The stack follows
+simulator, the controllers, `move_group` and RViz in order (`so101_mtc_bringup`), the generator of exactly
+reachable grasp and place poses (`so101_mtc_task`'s library `grasp_poses`) and the MTC task that uses them (its node
+`pick_place`, with the block's true pose). The stack follows
 [ADR 0002](decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC from
 apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow
 [ADR 0003](decisions/0003-ik_and_grasp_poses.md).
@@ -18,7 +19,7 @@ flowchart TB
   end
   DET["block_detector<br/>so101_mtc_perception_ros"]
   CORE["so101_mtc_perception<br/>plain Python, OpenCV"]
-  TASK["pick_place_task<br/>so101_mtc_task, C++ MTC"]
+  TASK["pick_place<br/>so101_mtc_task, C++ MTC"]
   MG["move_group<br/>planning scene, IK, planners"]
   subgraph CTRL["ros2_control"]
     ARM["arm_controller"]
@@ -52,8 +53,9 @@ flowchart TB
 - **block_detector** (`so101_mtc_perception_ros`, M3): a thin node. It turns the image, `camera_info` and the
   camera's TF into numpy and calls `so101_mtc_perception`: a colour mask and a contour give the block's pixel and
   yaw, `geometry.pixel_to_plane` the point on the table. It publishes `/block_pose`.
-- **pick_place_task** (`so101_mtc_task`, C++, M2): adds the block to the planning scene as a collision object, plans
-  the MTC task and sends the solution to `move_group` for execution. Its grasp and place poses come from the library
+- **pick_place** (`so101_mtc_task`, C++, M2): on each call of its service `~/pick_place` (and once at start-up), it
+  takes the block's latest pose, adds the block to the planning scene as a collision object, plans the MTC task and
+  sends the cheapest solution to `move_group` for execution. Its grasp and place poses come from the library
   `grasp_poses` (ADR 0003), which reads the arm's kinematic facts from the robot model and its values from
   `config/grasp_poses.yaml`.
 - **move_group** (MoveIt 2 with our `so101_mtc_moveit_config`): the planning scene, the IK plugin, the planners, the
@@ -75,8 +77,12 @@ flowchart TB
   still gets the last pose.
 - `/joint_states` (`sensor_msgs/JointState`): from `joint_state_broadcaster`.
 - `/tf`, `/tf_static` (`tf2_msgs/TFMessage`): the links from `robot_state_publisher`; the camera and the TCP are static.
+- `/pick_place/pick_place` (service `so101_mtc_interfaces/srv/PickPlace`): one pick and place to the target of the
+  request; the response gives the result, the failing stages, the times and the grasp and place that ran.
 - `/execute_task_solution` (action `moveit_task_constructor_msgs/action/ExecuteTaskSolution`): served by the MTC
   capability of `move_group`.
+- `/description`, `/statistics`, `/solution` (`moveit_task_constructor_msgs`): MTC's introspection of the task, for
+  RViz's MTC panel.
 - `/arm_controller/follow_joint_trajectory` (action `control_msgs/action/FollowJointTrajectory`) and
   `/gripper_controller/gripper_cmd` (action `control_msgs/action/ParallelGripperCommand`): MoveIt → ros2_control.
   MoveIt sends a gripper trajectory's last point as one goal.
@@ -85,10 +91,11 @@ flowchart TB
 
 1. Perception (M3): the camera image → `block_detector` → `/block_pose` (the position on the table and the yaw). In M2
    the simulator's true pose takes its place.
-2. Planning: `pick_place_task` puts the block into the planning scene and plans the MTC task: current state → open the
+2. Planning: `pick_place` puts the block into the planning scene and plans the MTC task: current state → open the
    gripper → move to the grasp → approach → grasp poses reachable with 5 joints (ADR 0003: our generator of exactly
    reachable poses, `GeneratePose` + `ComputeIK` with KDL; top-down near the base, tilted further out) → close →
-   attach the block → lift → move to the place → lower → open → detach → retreat → home.
+   attach the block centred on the tcp, where closing pushes it → lift → move to the place → lower → place poses for
+   the block in the hand → open → detach → retreat → home.
 3. Execution: the solution goes to `move_group` (`/execute_task_solution`), which sends the trajectories to the
    controllers.
 4. Feedback: the simulator moves the arm; `/joint_states` and TF keep MoveIt and the detector up to date. In M4 an

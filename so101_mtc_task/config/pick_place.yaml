@@ -1,0 +1,24 @@
+# The MTC pick and place node of so101_mtc_task (ROB-52): the only source of these values. The grasp and place
+# poses and their distances are in grasp_poses.yaml, the block's size in so101_mtc_description's config/task.yaml.
+# Metres and seconds.
+/**:
+  ros__parameters:
+    pick_place:
+      block_id: block  # the block's body in MuJoCo and its collision object in MoveIt
+      block_topic: /block/free_joint_states
+      target: [0.20, -0.10]  # x, y in world: where the run at start-up puts the block's centre
+      run_at_start: true  # one run at start-up; the service ~/pick_place runs more
+      execute: true  # false: plan only, the solutions show in RViz's MTC panel
+      end_effector: gripper  # SRDF names
+      arm_home: home
+      gripper_open: open
+      gripper_closed: closed
+      hand_links: [gripper_link, moving_jaw_so101_v1_link]  # may touch the block: the fixed and the moving jaw
+      support_link: table  # the table is a link of the robot (so101_mtc_description), not a collision object
+      max_solutions: 5  # planning stops after this many solutions; the cheapest runs
+      planning_timeout: 30.0  # the whole task
+      connect_timeout: 5.0  # each free motion (OMPL)
+      min_fraction: 0.8  # the approach, lift, lower and retreat may stop at this fraction of their distance
+      velocity_scaling: 0.5
+      acceleration_scaling: 0.5
+      cartesian_step: 0.002  # between the waypoints of a straight motion

@@ -1,0 +1,11 @@
+# One pick and place of so101_mtc_task's node: MTC plans the pick of the block from where the simulator has it
+# (/block/free_joint_states) and the place of its centre over the target, then move_group executes the plan.
+
+geometry_msgs/Point target  # on the table top, in world (z is ignored)
+---
+bool success  # planned and executed; whether the block rests on the target is for the simulator to check
+string failed_stage  # MTC's failing stages, or the execution's error; empty on success
+float64 planning_time  # s
+float64 execution_time  # s
+string grasp  # the executed grasp: its family (tilt) and jaw angle
+string place  # the executed place, alike

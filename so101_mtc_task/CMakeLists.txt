@@ -11,9 +11,18 @@ endif()
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(moveit_core REQUIRED)
+find_package(moveit_ros_planning REQUIRED)
+find_package(moveit_ros_planning_interface REQUIRED)
+find_package(moveit_task_constructor_core REQUIRED)
+find_package(mujoco_ros2_control_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rviz_marker_tools REQUIRED)
+find_package(so101_mtc_interfaces REQUIRED)
+find_package(tf2_eigen REQUIRED)
+find_package(yaml-cpp REQUIRED)
 
 # ADR 0003's generator of grasp and place poses that the 5-joint arm reaches exactly
 add_library(grasp_poses SHARED src/grasp_poses.cpp)
@@ -22,18 +31,22 @@ target_include_directories(grasp_poses PUBLIC
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
 ament_target_dependencies(grasp_poses PUBLIC Eigen3 moveit_core rclcpp)
 
+# The MTC pick and place node (ROB-52), with the stages that feed it the generator's poses
+add_executable(pick_place src/pick_place_node.cpp src/mtc_stages.cpp)
+target_link_libraries(pick_place grasp_poses yaml-cpp)
+ament_target_dependencies(pick_place ament_index_cpp moveit_ros_planning moveit_ros_planning_interface
+  moveit_task_constructor_core mujoco_ros2_control_msgs rviz_marker_tools so101_mtc_interfaces tf2_eigen)
+
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 install(TARGETS grasp_poses EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
-install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
+install(TARGETS pick_place DESTINATION lib/${PROJECT_NAME})
+install(DIRECTORY config launch DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_index_cpp REQUIRED)
-  find_package(moveit_ros_planning REQUIRED)
   find_package(so101_mtc_description REQUIRED)
   find_package(xacro REQUIRED)
-  find_package(yaml-cpp REQUIRED)
 
   # The robot as move_group loads it: so101_mtc_description's xacro, expanded at build time (xacro tracks the files
   # it includes, so a change of the description rebuilds it)

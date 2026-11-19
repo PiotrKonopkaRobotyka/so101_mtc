@@ -16,6 +16,9 @@ arm_controller:
     joints: [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll]
     command_interfaces: [position]
     state_interfaces: [position, velocity]
+    # MTC's time-parameterised trajectories can end at about 1e-3 rad/s instead of exactly 0, which the controller
+    # rejects by default (joint_trajectory_controller 4.42); MoveIt's reference configs (Panda, Fanuc) allow it too
+    allow_nonzero_velocity_at_trajectory_end: true
 
 # The gripper closes toward a target past the block and reports success once the jaw stops on it (allow_stalling,
 # ADR 0002), so the grasp does not depend on the block's size. The servo limits the force (in MuJoCo, Menagerie's

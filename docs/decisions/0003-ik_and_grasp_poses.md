@@ -72,7 +72,13 @@ The spike ROB-44 measured the following. Its code is in `~/code/experiments/so10
     pre-places, for every held block. The place is higher than the grasp (clearance and the held block's tilt),
     which costs reach. With 0.23 m and 0.29 m, every pose solves; both stay within the decision's "about 0.24 m".
   - A tilted grasp keeps the jaws horizontal, so it grips a block whose faces do not face the arm plane by its
-    edges. To test in MuJoCo; the fallback is to keep the block area in the top-down zone.
+    edges. To test in MuJoCo; the fallback is to keep the block area in the top-down zone. Update 2026-11-19
+    (ROB-52): the jaws stay horizontal, and the approach gap grows by how much further the block's corner reaches
+    across them, half the edge × (cos ψ + sin ψ − 1) for a misalignment ψ. Closing then turns the block between the
+    jaws and pushes it onto the fixed one. In MuJoCo, two tilted grasps (15° and 30°) of blocks turned 35–40° against
+    the jaws ended on the target, so the fallback is not needed; ROB-53's trials measure it over the whole area. Jaws
+    rolled to face the block's sides were tried and dropped: at 30°, the lowered fixed jaw hits the table, and a
+    rolled jaw sweeps into it as it closes (`test_grasp_poses`, MTC's collision check).
   - The TCP and the contact angle change with the block's size, which project 1's ROB-17 fixes.
 - **Block area:** the map covers the provisional block area; the generator covers the whole reachable ring whatever
   area ROB-17 sets.

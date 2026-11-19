@@ -184,7 +184,24 @@ protected:
     ++sweep.poses;
     if (!solved)
     {
-      return "no collision-free IK";
+      // without the collision check: kinematically out of reach, or reached only in collision (and with what)?
+      moveit::core::RobotState free = state;
+      if (!free.setFromIK(model_->getJointModelGroup(parameters.arm_group), pose, parameters.tcp_frame, 0.0))
+      {
+        return "no IK";
+      }
+      free.update();
+      collision_detection::CollisionRequest request;
+      request.contacts = true;
+      request.max_contacts = 10;
+      collision_detection::CollisionResult result;
+      scene_->checkCollision(request, result, free);
+      std::string pairs;
+      for (const auto& [names, contacts] : result.contacts)
+      {
+        pairs += (pairs.empty() ? "" : ", ") + names.first + " - " + names.second;
+      }
+      return "IK only in collision: " + pairs;
     }
     state.update();
     const Eigen::Isometry3d& reached = state.getGlobalLinkTransform(parameters.tcp_frame);
@@ -258,7 +275,7 @@ TEST_F(GraspPosesTest, GraspGeometry)
   {
     const double yaw = std::fmod(index++ * 23.0, 90.0) * kDeg;
     const Eigen::Vector3d block = areaPoint(r, azimuth, block_size_ / 2.0);
-    const std::vector<Grasp> grasps = generator_->grasps(block, yaw);
+    const std::vector<Grasp> grasps = generator_->grasps(block, yaw, block_size_);
     ASSERT_FALSE(grasps.empty()) << "no grasp at r " << r << ", azimuth " << azimuth;
     for (const Grasp& grasp : grasps)
     {
@@ -275,9 +292,16 @@ TEST_F(GraspPosesTest, GraspGeometry)
       {
         EXPECT_NEAR(x.z(), 0.0, kExact);
       }
+      // the gap: approach_gap, plus how much further the block's corner reaches across the jaws when its sides do
+      // not face them
+      const double off_side = std::abs(std::remainder(std::atan2(x.y(), x.x()) - yaw, M_PI / 2.0));
+      EXPECT_NEAR(grasp.misalignment, off_side, 1e-9);
+      EXPECT_NEAR(grasp.approach_gap,
+                  parameters.approach_gap + 0.5 * block_size_ * (std::cos(off_side) + std::sin(off_side) - 1.0),
+                  kExact);
       EXPECT_TRUE(generator_->withinRollLimits(grasp.wrist_roll));
-      // the tcp approach_gap from the block's centre towards the fixed jaw
-      const Eigen::Vector3d expected_tcp = block + arm.fixed_jaw_side * parameters.approach_gap * x;
+      // the tcp the gap from the block's centre towards the fixed jaw
+      const Eigen::Vector3d expected_tcp = block + arm.fixed_jaw_side * grasp.approach_gap * x;
       EXPECT_LT((grasp.grasp.translation() - expected_tcp).norm(), kExact);
       EXPECT_LT((grasp.pregrasp.translation() - grasp.grasp.translation() - parameters.pregrasp_distance * z).norm(),
                 kExact);
@@ -307,7 +331,7 @@ TEST_F(GraspPosesTest, GraspsSolveWithKdlOverTheTaskArea)
     const Eigen::Vector3d block = areaPoint(r, azimuth, block_size_ / 2.0);
     std::ostringstream where;
     where << "r " << r << " azimuth " << azimuth << " yaw " << yaw / kDeg;
-    for (const Grasp& grasp : generator_->grasps(block, yaw))
+    for (const Grasp& grasp : generator_->grasps(block, yaw, block_size_))
     {
       const std::string name = where.str() + " tilt " + std::to_string(grasp.tilt / kDeg).substr(0, 4) +
                                " beta " + std::to_string(grasp.jaw_angle / kDeg).substr(0, 6);
@@ -386,7 +410,7 @@ TEST_F(GraspPosesTest, PlacesSolveWithKdlOverTheTaskArea)
                                          std::tuple{ 0.32, 30.0, 30.0 } })
   {
     const Eigen::Vector3d centre = areaPoint(r, azimuth, block_size_ / 2.0);
-    const std::vector<Grasp> grasps = generator_->grasps(centre, yaw * kDeg);
+    const std::vector<Grasp> grasps = generator_->grasps(centre, yaw * kDeg, block_size_);
     ASSERT_FALSE(grasps.empty());
     const Eigen::Isometry3d block =
         Eigen::Translation3d(centre) * Eigen::AngleAxisd(yaw * kDeg, Eigen::Vector3d::UnitZ());

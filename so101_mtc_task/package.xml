@@ -3,24 +3,35 @@
 <package format="3">
   <name>so101_mtc_task</name>
   <version>0.1.0</version>
-  <description>The pick and place task of so101_mtc: ADR 0003's generator of grasp and place poses that the 5-joint SO-101 reaches exactly, for MoveIt Task Constructor.</description>
+  <description>The pick and place task of so101_mtc: ADR 0003's generator of grasp and place poses that the 5-joint SO-101 reaches exactly, and the MoveIt Task Constructor node that picks the block and places it on a target.</description>
   <maintainer email="piotr.konopka.robotyka@gmail.com">Piotr Konopka</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>ament_index_cpp</depend>
   <depend>eigen</depend>
   <depend>moveit_core</depend>
+  <depend>moveit_ros_planning</depend>
+  <depend>moveit_ros_planning_interface</depend>
+  <depend>moveit_task_constructor_core</depend>
+  <depend>mujoco_ros2_control_msgs</depend>
   <depend>rclcpp</depend>
+  <depend>rviz_marker_tools</depend>
+  <depend>so101_mtc_interfaces</depend>
+  <depend>tf2_eigen</depend>
+  <depend>yaml-cpp</depend>
+
+  <!-- the node: the block's size (task.yaml), the MoveIt config and KDL, the launch file -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>moveit_configs_utils</exec_depend>
+  <exec_depend>moveit_kinematics</exec_depend>
+  <exec_depend>so101_mtc_description</exec_depend>
+  <exec_depend>so101_mtc_moveit_config</exec_depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
-  <test_depend>ament_index_cpp</test_depend>
-  <test_depend>moveit_kinematics</test_depend>
-  <test_depend>moveit_ros_planning</test_depend>
-  <test_depend>so101_mtc_description</test_depend>
-  <test_depend>so101_mtc_moveit_config</test_depend>
   <test_depend>xacro</test_depend>
-  <test_depend>yaml-cpp</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
