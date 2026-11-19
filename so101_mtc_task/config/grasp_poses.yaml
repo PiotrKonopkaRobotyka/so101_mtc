@@ -8,9 +8,8 @@
       gripper_group: gripper  # SRDF group of the moving jaw
       tcp_frame: tcp  # the poses are poses of this frame (so101_mtc_description, ADR 0003)
       # Grasp families: a block up to max_radii[i] from the shoulder_pan axis is grasped with the approach tilted by
-      # tilts[i] from vertical, leaning away from the base: top-down, then the smallest tilt that reaches (ADR 0003).
-      # At 0.24 m top-down and at 0.30 m tilted 15°, the pre-grasp or the pre-place (5 cm up) is out of reach
-      # (test_grasp_poses), hence 1 cm less.
+      # tilts[i] from vertical, leaning away from the base: top-down, then the smallest tilt that reaches (ADR 0003,
+      # with its update on these limits).
       tilts: [0.0, 15.0, 30.0]
       max_radii: [0.23, 0.29, 0.35]
       pregrasp_distance: 0.05  # pre-grasp and retreat: back along the approach

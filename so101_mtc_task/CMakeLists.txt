@@ -41,13 +41,11 @@ if(BUILD_TESTING)
   xacro_add_xacro_file("${so101_mtc_description_DIR}/../urdf/so101_mtc.urdf.xacro" "${test_urdf}")
   add_custom_target(test_urdf ALL DEPENDS "${test_urdf}")
 
-  # The generator against MoveIt's KDL, FK and collision check over the task area (about a minute)
+  # The generator against MoveIt's KDL, FK and collision check over the task area (about 20 s)
   ament_add_gtest(test_grasp_poses test/test_grasp_poses.cpp TIMEOUT 300 SKIP_LINKING_MAIN_LIBRARIES)
   target_link_libraries(test_grasp_poses grasp_poses yaml-cpp)
   ament_target_dependencies(test_grasp_poses ament_index_cpp moveit_ros_planning)
-  target_compile_definitions(test_grasp_poses PRIVATE
-    TEST_URDF="${test_urdf}"
-    GRASP_POSES_YAML="${CMAKE_CURRENT_SOURCE_DIR}/config/grasp_poses.yaml")
+  target_compile_definitions(test_grasp_poses PRIVATE TEST_URDF="${test_urdf}")
   add_dependencies(test_grasp_poses test_urdf)
 endif()
 

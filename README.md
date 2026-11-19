@@ -163,10 +163,10 @@ sampled around the block (MTC's `GenerateGraspPose`) mostly miss it and have no 
 library `grasp_poses` builds the poses the arm reaches exactly ([ADR 0003](docs/decisions/0003-ik_and_grasp_poses.md)),
 which MTC will take through `GeneratePose` and `ComputeIK` with KDL:
 
-- **Plane azimuth in closed form:** the plane must pass the roll axis, which lies 3.9 mm from the `tcp` and 0.18 mm
-  from the `shoulder_pan` axis. For a point p of `gripper_link` that has to land on c, the azimuth θ of the plane
-  follows from `r sin(φ − θ) = p_x cos β − p_y sin β + e`, where (r, φ) is c about the pan axis, β the jaw angle and e
-  the plane's offset.
+- **Plane azimuth in closed form:** the plane must hold the roll axis, which lies 3.9 mm from the `tcp`, and the
+  plane itself lies e = 0.18 mm from the `shoulder_pan` axis. For a point p of `gripper_link` that has to land on c,
+  the azimuth θ of the plane follows from `r sin(φ − θ) = p_x cos β − p_y sin β + e`, where (r, φ) is c about the pan
+  axis and β the jaw angle.
 - **Families by the distance from the `shoulder_pan` axis:** top-down up to 0.23 m, with the jaws facing the block's
   sides (four directions); tilted 15° up to 0.29 m and 30° beyond, leaning away from the base, with the jaws
   horizontal (two sides).
@@ -193,8 +193,8 @@ area: the block every 5 mm and 5°, the target every 1 cm and 10°.
   0.0004°, and the predicted `wrist_roll` is the solution's.
 - **Places:** 5382 solves for blocks held after a top-down, a 15° and a 30° grasp, none failed.
 - **The gap:** all 265 jaw sides left out for `wrist_roll` have no solution.
-- **Family limits:** at 0.24 m top-down and at 0.30 m tilted 15°, the pre-grasp or the pre-place is out of reach.
-  ADR 0003's map (ROB-44) put them at 0.245 m and 0.30 m, so the limits are 0.23 m and 0.29 m.
+- **Family limits:** run with the limits of ADR 0003's map (0.24 m and 0.30 m), the same test failed only there: the
+  pre-grasp or the pre-place, 5 cm above, is out of reach. Hence 0.23 m and 0.29 m (ADR 0003's update).
 
 ## Tests
 

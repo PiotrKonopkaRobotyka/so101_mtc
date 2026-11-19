@@ -41,14 +41,14 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 - 0001 Scope and exit criteria: M1 bringup, M2 MTC with the true pose, M3 camera, M4 50 episodes, M5 release.
 - 0002 Stack: MuJoCo (`mujoco_ros2_control`), MTC from apt, official SO-101 (URDF + Menagerie MJCF), apt-only Python.
-- 0003 IK and grasps: top-down, then tilted 15°/30° (0.23/0.29 m); exactly reachable poses for KDL; TCP in the URDF.
+- 0003 IK and grasps: top-down, then tilted 15°/30°; exactly reachable poses for KDL; TCP in the URDF.
 
 ## Pitfalls
 
 - MTC exists twice: apt 0.1.8 (ours) and source 0.1.4 in `moveit_ws` (other projects): never build or run with another
   overlay sourced. Upgrade ROS packages a whole sync at a time (ros2_control 4.46 changed its ABI).
 - 5 arm joints: a pose is reachable only with the `wrist_roll` axis in the arm plane, and the TCP is 3.9 mm off it.
-  Take poses from `grasp_poses`, never sampled ones (`GenerateGraspPose`) or `position_only_ik`.
+  Take poses from `grasp_poses`; `GenerateGraspPose` only as ADR 0003's top-down baseline, never `position_only_ik`.
 - `wrist_roll` = jaw angle + 92.8° within −157°/+163°: a top-down jaw direction in the gap uses the other jaw side.
 - MuJoCo: `<attach>` drops the model's `<option>` (copied into the scene); services under `/mujoco_ros2_control_node/`;
   `reset_world` with active controllers leaves the arm at its last command. `scene.xml` is generated (rebuild after
@@ -59,5 +59,5 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 ## Current milestone
 
-M2: ROB-51 done (`grasp_poses`: 9405 grasp and 5382 place IK solves over the task area, none failed). Next ROB-52: the
-MTC task (`mycobot_mtc_pick_place_demo`'s stages, poses from `grasp_poses`, block from `/block/free_joint_states`).
+M2: ROB-51 done (`grasp_poses`, README "Grasp and place poses"). Next ROB-52: the MTC task (the myCobot demo's
+stages, poses from `grasp_poses`, the block from `/block/free_joint_states`), then ROB-53 (trials, success check).

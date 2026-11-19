@@ -102,10 +102,13 @@ protected:
     std::vector<rclcpp::Parameter> overrides = kinematicsParameters(moveit_config + "/config/kinematics.yaml");
     overrides.emplace_back("robot_description", readFile(TEST_URDF));
     overrides.emplace_back("robot_description_semantic", readFile(moveit_config + "/config/so101_mtc.srdf"));
+    // the installed parameter file, which the MTC node loads too
+    const std::string parameters =
+        ament_index_cpp::get_package_share_directory("so101_mtc_task") + "/config/grasp_poses.yaml";
     rclcpp::NodeOptions options;
     options.parameter_overrides(overrides)
         .automatically_declare_parameters_from_overrides(true)
-        .arguments({ "--ros-args", "--params-file", GRASP_POSES_YAML });
+        .arguments({ "--ros-args", "--params-file", parameters });
     node_ = std::make_shared<rclcpp::Node>("test_grasp_poses", options);
     loader_ = std::make_unique<robot_model_loader::RobotModelLoader>(node_, "robot_description", true);
     model_ = loader_->getModel();
