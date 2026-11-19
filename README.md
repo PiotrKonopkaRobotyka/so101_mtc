@@ -10,10 +10,10 @@ metrics (success rate over 50 episodes, time per pick and place): imitation lear
 ## Status
 
 M1 One-command sim bringup done: one command starts MuJoCo with the robot, the table, the block and the camera, the
-controllers, MoveIt with MTC's capability and RViz ([Run the simulation](#run-the-simulation)). M2 (the MTC pick and
-place task with the block's true pose) is under way: the MTC task picks the block from its true pose and places it
-on a target in MuJoCo ([Pick and place with MTC](#pick-and-place-with-mtc)); the trials with the success check come
-next. The scope and the exit
+controllers, MoveIt with MTC's capability and RViz ([Run the simulation](#run-the-simulation)). M2 MTC pick and place
+from the block's true pose done: the MTC task picks the block and places it on a target in MuJoCo
+([Pick and place with MTC](#pick-and-place-with-mtc)), and 20 of 20 trials pass project 1's success check
+([Trials](#trials)). M3 (the block's pose from the camera) comes next. The scope and the exit
 criteria are fixed in [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md), the planned nodes, topics
 and TF frames in [docs/architecture.md](docs/architecture.md). The stack is fixed in
 [ADR 0002](docs/decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC
@@ -35,6 +35,9 @@ reachable poses for MoveIt's default KDL.
   reaches exactly ([Grasp and place poses](#grasp-and-place-poses)) and the MTC node that picks the block and places
   it on a target ([Pick and place with MTC](#pick-and-place-with-mtc)).
 - `so101_mtc_interfaces/` — the service `PickPlace`: one pick and place on request.
+- `so101_mtc_eval/` — the trials without ROS: the draw of the block and the target, project 1's success check and
+  the records with their summary; plain Python, tested in CI. `so101_mtc_eval_ros/` — the trial runner
+  ([Trials](#trials)), which also installs `so101_mtc_eval` for the nodes.
 - Planned: `so101_mtc_perception_ros` (a thin node: image → block pose).
 
 ## Workspace setup
@@ -235,14 +238,41 @@ panel ("Motion Planning Tasks") shows the stages and the solutions.
 
 In MuJoCo, six pick and places with blocks of every family ended with the block on the target, 3–9 mm from its centre
 and flat on the table. They included two in each family, and two tilted grasps of blocks turned 35–40° against the
-jaws. Planning took 0.7–2.0 s, execution about 12.5 s. The trials with the success check come next.
+jaws. Planning took 0.7–2.0 s, execution about 12.5 s.
+
+## Trials
+
+The trials judge the pick and place in the simulator, by project 1's success check, as fixed in
+[ADR 0004](docs/decisions/0004-evaluation_protocol.md) before the first one:
+
+- **Draw:** the block and the target come from the task area as project 1's simulator draws them, with a seed.
+- **Success:** for the last 0.2 s of a second after the task, the block lies on the target disc (5 cm), rests on the
+  table on a face, is still, and the hand is away from it. Project 1 also checks the contact forces, which ROS does
+  not show.
+- **Each trial:** the gripper opens and the arm goes home, the block is put down, `/pick_place/pick_place` runs, the
+  block's pose decides. No retries; one CSV row per trial, a JSON summary per run, under
+  `$DATA_DIR/so101_mtc/m2/`.
+
+With the simulation and the task node running (`pick_place.launch.py run_at_start:=false`):
+
+```bash
+ros2 run so101_mtc_eval_ros run_trials --trials 20 --seed 0   # about 18 s per trial; --dry-run lists the draw
+```
+
+**M2 result** (20 trials, seed 0): **20 of 20 succeeded**, 95 % Wilson interval 84–100 %. By grasp family: top-down
+12 of 12, tilted 15° 6 of 6, tilted 30° 2 of 2. Among the tilted grasps, three blocks were turned 27–38° against the
+jaws (ADR 0003's open point); all three ended on the target. The block ended 5.1 mm from the target's centre
+(median; at most 12.3 mm). Planning took 1.5 s (median; at most 1.9 s), a whole pick and place 14.2 s (median; from
+the call to the arm back home).
 
 ## Tests
 
-The ROS-free core needs only numpy and pytest (on Ubuntu 24.04: `sudo apt install python3-numpy python3-pytest`):
+The ROS-free cores need only numpy and pytest (on Ubuntu 24.04: `sudo apt install python3-numpy python3-pytest`);
+each has its own `pyproject.toml`, so each runs on its own:
 
 ```bash
 python3 -m pytest so101_mtc_perception
+python3 -m pytest so101_mtc_eval
 ```
 
 GitHub Actions runs the same tests, with the same numpy and pytest versions, on every push to `main` and every pull
@@ -261,7 +291,9 @@ into MoveIt through `moveit_py`, without a simulator: the groups and the end eff
 the start pose), no collision in them but collisions where the arm reaches through the table, and controllers that
 agree with MoveIt's mapping. The bringup's test loads the launch file and checks that the MuJoCo plugins name a
 camera, a frame and a body that exist. `so101_mtc_task`'s gtest checks the pose generator against MoveIt's KDL and FK
-over the task area ([Grasp and place poses](#grasp-and-place-poses)).
+over the task area ([Grasp and place poses](#grasp-and-place-poses)); its pytest loads the pick and place launch file
+and checks that the parameter files hold every parameter the node reads. `so101_mtc_eval_ros`'s test calls
+`run_trials --dry-run` as a person would.
 
 ## License and third-party code
 

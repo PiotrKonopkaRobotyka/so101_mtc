@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+"""Pick and place trials in MuJoCo with project 1's success check: see so101_mtc_eval_ros.run_trials."""
+from so101_mtc_eval_ros.run_trials import main
+
+if __name__ == "__main__":
+    main()

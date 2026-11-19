@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "so101_mtc_eval"
+version = "0.1.0"
+description = "Trials of SO-101 pick and place: the draw of the block and the target, project 1's success check and the trial records; plain Python, no ROS"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools]
+packages = ["so101_mtc_eval"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# the tests also run from a plain checkout, without installing the package (system Python, no venv)
+pythonpath = ["."]

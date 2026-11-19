@@ -77,7 +77,7 @@ The spike ROB-44 measured the following. Its code is in `~/code/experiments/so10
     across them, half the edge × (cos ψ + sin ψ − 1) for a misalignment ψ. Closing then turns the block between the
     jaws and pushes it onto the fixed one. In MuJoCo, tilted grasps of blocks turned against the jaws ended on the
     target (README, "Pick and place with MTC"; check: `~/code/experiments/so101_mtc_task_check`), so the fallback is
-    not needed; ROB-53's trials measure it over the whole area. Jaws
+    not needed; ROB-53's trials (README, "Trials") support it. Jaws
     rolled to face the block's sides were tried and dropped: at 30°, the lowered fixed jaw hits the table, and a
     rolled jaw sweeps into it as it closes (`test_grasp_poses`, MTC's collision check).
   - The TCP and the contact angle change with the block's size, which project 1's ROB-17 fixes.

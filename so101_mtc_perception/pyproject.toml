@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "so101_mtc_perception"
 version = "0.1.0"
 description = "Block detection and camera geometry for SO-101 pick and place: plain Python, no ROS"
+license = {text = "Apache-2.0"}
 requires-python = ">=3.10"
 dependencies = ["numpy"]
 

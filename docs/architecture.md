@@ -3,8 +3,9 @@
 Planned for M1–M4. Built so far: the robot description and the MuJoCo scene (`so101_mtc_description`, the TF
 frames below), the MoveIt config with the controllers (`so101_mtc_moveit_config`), the launch that starts the
 simulator, the controllers, `move_group` and RViz in order (`so101_mtc_bringup`), the generator of exactly
-reachable grasp and place poses (`so101_mtc_task`'s library `grasp_poses`) and the MTC task that uses them (its node
-`pick_place`, with the block's true pose). The stack follows
+reachable grasp and place poses (`so101_mtc_task`'s library `grasp_poses`), the MTC task that uses them (its node
+`pick_place`, with the block's true pose) and the trial runner with project 1's success check (`so101_mtc_eval_ros`,
+ADR 0004). The stack follows
 [ADR 0002](decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC from
 apt, the official SO-101 model (the stack spike ROB-43 ran this layout); the IK and the grasp poses follow
 [ADR 0003](decisions/0003-ik_and_grasp_poses.md).
@@ -65,6 +66,10 @@ flowchart TB
   is a parallel gripper action controller that closes toward `closed` and succeeds when the jaw stops on the block
   (`allow_stalling`, ADR 0002); `joint_state_broadcaster` publishes `/joint_states`.
 - **robot_state_publisher**: the robot description and `/joint_states` → TF of the links.
+- **run_trials** (`so101_mtc_eval_ros`, not drawn): draws the block and the target from the task area with a seed,
+  brings the arm home through `move_group`, puts the block down (`set_free_joint_state`), calls
+  `/pick_place/pick_place` and judges the trial on the block's true pose and the tcp's TF (`so101_mtc_eval`,
+  ADR 0004); one CSV row per trial.
 - **RViz** (not drawn): MotionPlanning and the MTC panel, to inspect the task's stages and solutions.
 
 ### Topics and actions
@@ -98,8 +103,8 @@ flowchart TB
    the block in the hand → open → detach → retreat → home.
 3. Execution: the solution goes to `move_group` (`/execute_task_solution`), which sends the trajectories to the
    controllers.
-4. Feedback: the simulator moves the arm; `/joint_states` and TF keep MoveIt and the detector up to date. In M4 an
-   episode runner checks the success in the simulator and starts the next episode.
+4. Feedback: the simulator moves the arm; `/joint_states` and TF keep MoveIt and the detector up to date. The trial
+   runner checks the success in the simulator and starts the next trial (M2: 20 trials; M4: 50 episodes).
 
 ## TF frames
 
