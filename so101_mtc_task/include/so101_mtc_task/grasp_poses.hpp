@@ -61,11 +61,12 @@ struct ArmGeometry
 /// (a vertical pan axis, parallel horizontal pitch axes, a roll axis across them along z of the gripper frame).
 ArmGeometry readArmGeometry(const moveit::core::RobotModelConstPtr& model, const GraspParameters& parameters);
 
-/// A pose of the gripper frame that the arm reaches exactly, with its jaw angle beta.
+/// A pose of the gripper frame that the arm reaches exactly, with its jaw angle beta and the arm plane's azimuth.
 struct GripperPose
 {
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   double jaw_angle = 0.0;
+  double plane_azimuth = 0.0;  ///< theta: the direction of the arm plane from the pan axis
 };
 
 /// One way to grasp a block: a family (tilt) and a jaw side, with the tcp poses of its waypoints in the model frame.
@@ -74,6 +75,8 @@ struct Grasp
   double tilt = 0.0;        ///< the approach's tilt from vertical
   double jaw_angle = 0.0;   ///< beta
   double wrist_roll = 0.0;  ///< the wrist_roll angle the three poses need
+  double misalignment = 0.0;  ///< rad, seen from above: the jaw axis off the nearest normal of the block's sides
+  double approach_gap = 0.0;  ///< the tcp's offset from the block's centre towards the fixed jaw at the grasp
   Eigen::Isometry3d pregrasp = Eigen::Isometry3d::Identity();  ///< the grasp, moved back along the approach
   Eigen::Isometry3d grasp = Eigen::Isometry3d::Identity();     ///< where the gripper closes
   Eigen::Isometry3d lift = Eigen::Isometry3d::Identity();      ///< the grasp, moved straight up
@@ -104,10 +107,11 @@ public:
   /// The tilt of the first family that serves this distance; none beyond the last family.
   std::optional<double> tiltFor(double radius) const;
 
-  /// Grasps of a block standing on the table, given its centre and its yaw about the vertical. Top-down, the jaws
-  /// face the block's sides (four directions); tilted, they are horizontal (two sides). Only jaw sides within
-  /// wrist_roll's limits; at the grasp, the tcp is approach_gap from the centre towards the fixed jaw.
-  std::vector<Grasp> grasps(const Eigen::Vector3d& block_centre, double block_yaw) const;
+  /// Grasps of a cube standing on the table, given its centre, its yaw about the vertical and its edge. Top-down,
+  /// the jaws face the block's sides (four directions); tilted, they are horizontal (two sides). Only jaw sides
+  /// within wrist_roll's limits. At the grasp, the tcp is approach_gap from the centre towards the fixed jaw, more
+  /// when the block's sides do not face the jaws, so that the fixed jaw clears the block's corner.
+  std::vector<Grasp> grasps(const Eigen::Vector3d& block_centre, double block_yaw, double block_size) const;
 
   /// Places of the held block over a target point on the table top. `block_in_tcp` is the block's pose in the tcp
   /// frame since the grasp and `block_size` its edges: the block's centre goes over the target, its lowest corner

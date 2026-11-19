@@ -11,8 +11,9 @@ metrics (success rate over 50 episodes, time per pick and place): imitation lear
 
 M1 One-command sim bringup done: one command starts MuJoCo with the robot, the table, the block and the camera, the
 controllers, MoveIt with MTC's capability and RViz ([Run the simulation](#run-the-simulation)). M2 (the MTC pick and
-place task with the block's true pose) is under way: its grasp and place poses are done
-([Grasp and place poses](#grasp-and-place-poses)), the MTC task comes next. The scope and the exit
+place task with the block's true pose) is under way: the MTC task picks the block from its true pose and places it
+on a target in MuJoCo ([Pick and place with MTC](#pick-and-place-with-mtc)); the trials with the success check come
+next. The scope and the exit
 criteria are fixed in [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md), the planned nodes, topics
 and TF frames in [docs/architecture.md](docs/architecture.md). The stack is fixed in
 [ADR 0002](docs/decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC
@@ -31,7 +32,9 @@ reachable poses for MoveIt's default KDL.
   [MoveIt config](#moveit-config).
 - `so101_mtc_bringup/` — one launch for everything: MuJoCo, the controllers in order, MoveIt and RViz.
 - `so101_mtc_task/` — the pick and place task in C++: the generator of grasp and place poses that the 5-joint arm
-  reaches exactly (see [Grasp and place poses](#grasp-and-place-poses)); the MTC task follows in M2.
+  reaches exactly ([Grasp and place poses](#grasp-and-place-poses)) and the MTC node that picks the block and places
+  it on a target ([Pick and place with MTC](#pick-and-place-with-mtc)).
+- `so101_mtc_interfaces/` — the service `PickPlace`: one pick and place on request.
 - Planned: `so101_mtc_perception_ros` (a thin node: image → block pose).
 
 ## Workspace setup
@@ -54,8 +57,8 @@ The build needs the fetched models: `so101_mtc_description` installs them from `
 `src/mujoco_menagerie` and stops with a message when they are missing.
 
 Upgrade ROS packages a whole sync at a time (`sudo apt upgrade`): their dependencies carry no versions, so a partial
-upgrade can mix incompatible binaries. `rosdep` installs what the packages declare (MoveIt, the MTC capability and
-panel, the MuJoCo bridge, the controllers); the apt line adds MTC's core library, which the task (M2) will declare.
+upgrade can mix incompatible binaries. `rosdep` installs what the packages declare (MoveIt, MTC with its capability
+and panel, the MuJoCo bridge, the controllers); the apt line installs the largest of them in one go.
 
 ## Run the simulation
 
@@ -118,10 +121,12 @@ Setup Assistant):
 - `config/ros2_controllers.yaml` — the ros2_control controllers: `joint_state_broadcaster`, `arm_controller` (joint
   trajectories) and `gripper_controller`, a parallel gripper action controller. It closes toward `closed` and reports
   success once the jaw stops on the block (`allow_stalling`, ADR 0002); the servo limits the force (2.94 N·m in
-  MuJoCo), and on the 25 mm block the jaw rests at 0.065 rad.
+  MuJoCo), and on the 25 mm block the jaw rests at 0.065 rad. The arm's controller accepts a trajectory that ends at
+  a tiny velocity, as MTC's time parameterisation leaves it (about 1e-3 rad/s); MoveIt's reference configs do the same.
 - `config/moveit_controllers.yaml` — MoveIt → those controllers (`FollowJointTrajectory`, `ParallelGripperCommand`),
   with a start tolerance of 0.2 rad for the gripper: a planned opening starts from `closed` while the jaw rests on
-  the block.
+  the block. MoveIt allows 3 s past a trajectory's planned end: the gripper's goal ends only once the jaw stops on the
+  block, later when the block turns between the closing jaws.
 - `.setup_assistant` — tells `MoveItConfigsBuilder` where the URDF (`so101_mtc_description`) and the SRDF are, so that
   every launch file builds the same config:
   `MoveItConfigsBuilder("so101_mtc", package_name="so101_mtc_moveit_config")`.
@@ -161,7 +166,7 @@ The SO-101 has 5 arm joints. Its three pitch joints keep the `wrist_roll` axis i
 `shoulder_pan` turns, so the arm reaches a gripper pose only when the roll axis lies in that plane. Grasp poses
 sampled around the block (MTC's `GenerateGraspPose`) mostly miss it and have no IK solution. `so101_mtc_task`'s
 library `grasp_poses` builds the poses the arm reaches exactly ([ADR 0003](docs/decisions/0003-ik_and_grasp_poses.md)),
-which MTC will take through `GeneratePose` and `ComputeIK` with KDL:
+which the MTC task takes through `GeneratePose` and `ComputeIK` with KDL:
 
 - **Plane azimuth in closed form:** the plane must hold the roll axis, which lies 3.9 mm from the `tcp`, and the
   plane itself lies e = 0.18 mm from the `shoulder_pan` axis. For a point p of `gripper_link` that has to land on c,
@@ -175,7 +180,9 @@ which MTC will take through `GeneratePose` and `ComputeIK` with KDL:
 - **Jaw sides:** `wrist_roll` = β + 92.8° and stops at −157°/+163°, so a jaw direction in that gap uses the other
   jaw side; the generator leaves such sides out.
 - **Approach gap:** the `tcp` is the centre of a block pressed onto the fixed jaw, so the descent stops with the `tcp`
-  3.6 mm towards the fixed jaw; otherwise the fixed jaw drags the block.
+  3.6 mm towards the fixed jaw; otherwise the fixed jaw drags the block. When the block's sides do not face the jaws
+  (tilted grasps), its corner reaches further across them, so the gap grows by half the edge × (cos ψ + sin ψ − 1)
+  for the misalignment ψ, up to 5.2 mm at 45°. Closing then turns the block and pushes it onto the fixed jaw.
 - **Place height:** the held block keeps its pose in the gripper since the grasp, and it tilts when the place uses
   another family than the grasp. The place puts the block's centre over the target and its lowest corner 3 mm above
   the table.
@@ -183,7 +190,7 @@ which MTC will take through `GeneratePose` and `ComputeIK` with KDL:
 The kinematic facts come from the robot model at zero joint values: the pan axis, the plane's offset, `wrist_roll`'s
 zero and limits, the `tcp` and the fixed jaw's side. The generator throws when the model breaks its assumptions, for
 example non-parallel pitch axes. Everything else is in `config/grasp_poses.yaml`, its only source: the families, the
-distances, the gap and the clearance. The MTC node will load the same file.
+distances, the gap and the clearance. The MTC node loads the same file.
 
 The test checks the poses against MoveIt itself, without a simulator. It loads our URDF and SRDF with KDL as
 `move_group` does, and asks for a collision-free solution (robot and table, gripper open) of every pose over the task
@@ -195,6 +202,40 @@ area: the block every 5 mm and 5°, the target every 1 cm and 10°.
 - **The gap:** all 265 jaw sides left out for `wrist_roll` have no solution.
 - **Family limits:** run with the limits of ADR 0003's map (0.24 m and 0.30 m), the same test failed only there: the
   pre-grasp or the pre-place, 5 cm above, is out of reach. Hence 0.23 m and 0.29 m (ADR 0003's update).
+
+## Pick and place with MTC
+
+`so101_mtc_task`'s node `pick_place` plans the pick and place with MoveIt Task Constructor and lets `move_group`
+execute it. With the simulation running ([Run the simulation](#run-the-simulation)):
+
+```bash
+ros2 launch so101_mtc_task pick_place.launch.py   # [execute:=false] [run_at_start:=false]
+ros2 service call /pick_place/pick_place so101_mtc_interfaces/srv/PickPlace "{target: {x: 0.20, y: -0.10}}"
+```
+
+The launch file loads the robot as `move_group` does, with `config/grasp_poses.yaml` and `config/pick_place.yaml`
+(the target of the run at start-up, the distances, the scaling and the timeouts). At start-up the node picks the block
+and places it on that target; each call of `~/pick_place` does it again, for the block where it lies and the target
+of the request (a point on the table top). The response and the log give the result: whether planning and execution
+succeeded, the failing stages, the planning and execution times, and the grasp and the place that ran. RViz's MTC
+panel ("Motion Planning Tasks") shows the stages and the solutions.
+
+- **Stages** (after `mycobot_mtc_pick_place_demo`): current state → allow block–table → open → move to pick (OMPL) →
+  pick: approach 5 cm along the tcp's z, the grasp poses with IK, allow hand–block, close, attach the block in the
+  hand, lift 5 cm, forbid block–table → move to place (OMPL) → place: lower 5 cm, the place poses with IK, release,
+  detach, retreat 5 cm, forbid hand–block → home.
+- **Poses:** the grasps come from `grasp_poses` for the block's true pose (`/block/free_joint_states`), one candidate
+  per family and jaw side; the places are computed while planning, from the block's pose in the hand. MTC runs the
+  cheapest solution.
+- **The block in the hand:** closing pushes the block onto the fixed jaw and turns its sides to the jaws, so it ends
+  centred on the tcp. The planning scene attaches it there rather than where it stood, so the place fits the block
+  that is really held.
+- **Free motions move the arm only:** `move_group` executes each part of a solution through the SRDF group that moves
+  exactly its joints, and the gripper keeps its state between the grasp and the place.
+
+In MuJoCo, six pick and places with blocks of every family ended with the block on the target, 3–9 mm from its centre
+and flat on the table. They included two in each family, and two tilted grasps of blocks turned 35–40° against the
+jaws. Planning took 0.7–2.0 s, execution about 12.5 s. The trials with the success check come next.
 
 ## Tests
 
@@ -210,7 +251,7 @@ request ([tests.yml](.github/workflows/tests.yml)).
 The ROS packages are tested from the workspace, after the build (ROS 2 Jazzy; not in CI before M5):
 
 ```bash
-colcon test && colcon test-result --verbose   # about 25 s, 20 of them so101_mtc_task's IK sweep
+colcon test && colcon test-result --verbose   # about 35 s, 30 of them so101_mtc_task's IK sweep
 ```
 
 The test expands the xacro, lets MuJoCo's `compile` load the scene, and checks that the two agree: the joints and

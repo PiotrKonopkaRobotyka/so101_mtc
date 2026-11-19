@@ -224,7 +224,7 @@ std::optional<GripperPose> PoseGenerator::gripperPose(const Eigen::Vector3d& poi
     return std::nullopt;
   }
   const double theta = std::atan2(d.y(), d.x()) - std::asin(across / r);
-  return GripperPose{ gripperFrame(theta, tilt, jaw_angle, point, target), jaw_angle };
+  return GripperPose{ gripperFrame(theta, tilt, jaw_angle, point, target), jaw_angle, theta };
 }
 
 std::optional<GripperPose> PoseGenerator::topDownGripperPose(const Eigen::Vector3d& point,
@@ -243,7 +243,7 @@ std::optional<GripperPose> PoseGenerator::topDownGripperPose(const Eigen::Vector
   }
   const double theta = std::atan2(d.y(), d.x()) - std::asin(arm_.plane_offset / r);
   const Eigen::Vector3d normal(-std::sin(theta), std::cos(theta), 0.0);
-  return GripperPose{ pose, std::atan2(x.dot(kUp.cross(normal)), x.dot(normal)) };
+  return GripperPose{ pose, std::atan2(x.dot(kUp.cross(normal)), x.dot(normal)), theta };
 }
 
 double PoseGenerator::wristRoll(double jaw_angle) const
@@ -256,7 +256,8 @@ bool PoseGenerator::withinRollLimits(double wrist_roll) const
   return wrist_roll >= arm_.roll_min && wrist_roll <= arm_.roll_max;
 }
 
-std::vector<Grasp> PoseGenerator::grasps(const Eigen::Vector3d& block_centre, double block_yaw) const
+std::vector<Grasp> PoseGenerator::grasps(const Eigen::Vector3d& block_centre, double block_yaw,
+                                         double block_size) const
 {
   std::vector<Grasp> result;
   const std::optional<double> tilt = tiltFor(radius(block_centre));
@@ -264,44 +265,56 @@ std::vector<Grasp> PoseGenerator::grasps(const Eigen::Vector3d& block_centre, do
   {
     return result;
   }
-  // The point of the gripper frame that goes onto the block's centre: approach_gap from the tcp away from the fixed
-  // jaw, so that the tcp stops approach_gap from the centre towards it
-  const Eigen::Vector3d point =
-      arm_.gripper_to_tcp.translation() - arm_.fixed_jaw_side * parameters_.approach_gap * Eigen::Vector3d::UnitX();
-  std::vector<GripperPose> candidates;
-  if (std::abs(*tilt) < 1e-9)
+  const bool top_down = std::abs(*tilt) < 1e-9;
+  // Top-down, the jaw axis along each normal of the block's sides; tilted, along the plane's normal, so the jaws
+  // are horizontal (ADR 0003). The point of the gripper frame that goes onto the block's centre lies `gap` from the
+  // tcp away from the fixed jaw, so that the tcp stops `gap` from the centre towards it.
+  const int sides = top_down ? 4 : 2;
+  for (int side = 0; side < sides; ++side)
   {
-    for (int side = 0; side < 4; ++side)  // the jaw axis along each normal of the block's sides
+    const auto candidate_with = [&](double gap) {
+      const Eigen::Vector3d point =
+          arm_.gripper_to_tcp.translation() - arm_.fixed_jaw_side * gap * Eigen::Vector3d::UnitX();
+      return top_down ? topDownGripperPose(point, block_centre, block_yaw + side * M_PI / 2.0) :
+                        gripperPose(point, block_centre, *tilt, side * M_PI);
+    };
+    // A block whose sides do not face the jaws reaches further across them, by its corner: the gap grows by that
+    // much, so that the fixed jaw clears the corner on the way down. Closing then turns the block and pushes it onto
+    // the fixed jaw. A larger gap moves the point, which turns the plane (by about gap / r) and so the jaws: a few
+    // fixed-point steps settle the gap and the misalignment together.
+    double gap = parameters_.approach_gap;
+    double misalignment = 0.0;
+    std::optional<GripperPose> candidate;
+    for (int step = 0; step < 10; ++step)
     {
-      if (auto candidate = topDownGripperPose(point, block_centre, block_yaw + side * M_PI / 2.0))
+      candidate = candidate_with(gap);
+      if (!candidate)
       {
-        candidates.push_back(*candidate);
+        break;
       }
-    }
-  }
-  else
-  {
-    for (double jaw_angle : { 0.0, M_PI })  // the jaw axis along the plane's normal: horizontal
-    {
-      if (auto candidate = gripperPose(point, block_centre, *tilt, jaw_angle))
+      const Eigen::Vector3d jaw_axis = candidate->pose.linear().col(0);
+      misalignment = std::abs(std::remainder(std::atan2(jaw_axis.y(), jaw_axis.x()) - block_yaw, M_PI / 2.0));
+      const double next =
+          parameters_.approach_gap + 0.5 * block_size * (std::cos(misalignment) + std::sin(misalignment) - 1.0);
+      if (std::abs(next - gap) < 1e-12)
       {
-        candidates.push_back(*candidate);
+        break;
       }
+      gap = next;
     }
-  }
-  for (const GripperPose& candidate : candidates)
-  {
-    const double wrist_roll = wristRoll(candidate.jaw_angle);
-    if (!withinRollLimits(wrist_roll))
+    const double wrist_roll = candidate ? wristRoll(candidate->jaw_angle) : 0.0;
+    if (!candidate || !withinRollLimits(wrist_roll))
     {
       continue;
     }
     Grasp grasp;
     grasp.tilt = *tilt;
-    grasp.jaw_angle = candidate.jaw_angle;
+    grasp.jaw_angle = candidate->jaw_angle;
     grasp.wrist_roll = wrist_roll;
-    grasp.grasp = candidate.pose * arm_.gripper_to_tcp;
-    grasp.pregrasp = moved(grasp.grasp, parameters_.pregrasp_distance * candidate.pose.linear().col(2));
+    grasp.misalignment = misalignment;
+    grasp.approach_gap = gap;
+    grasp.grasp = candidate->pose * arm_.gripper_to_tcp;
+    grasp.pregrasp = moved(grasp.grasp, parameters_.pregrasp_distance * candidate->pose.linear().col(2));
     grasp.lift = moved(grasp.grasp, parameters_.lift_distance * kUp);
     result.push_back(grasp);
   }
