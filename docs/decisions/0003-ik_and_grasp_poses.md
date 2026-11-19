@@ -63,7 +63,10 @@ The spike ROB-44 measured the following. Its code is in `~/code/experiments/so10
   and the arm plane, so MTC's Cartesian stages stay exactly reachable.
 - **Open for M2:**
   - 2 of 60 top-down poses with the jaws across the arm plane found no KDL solution. A wrist-roll limit is the
-    likely cause; to check.
+    likely cause; to check. Update 2026-11-19 (ROB-48, ROB-51): confirmed. `wrist_roll` = β + 92.8° stops at
+    −157°/+163°, and none of the 265 jaw sides in that gap over the task area has a solution. The generator uses the
+    other jaw side. Its test also puts the family limits at 0.23 m (top-down) and 0.29 m (15°), where every
+    pre-grasp, lift and place stays reachable, within this ADR's "about 0.24 m".
   - A tilted grasp keeps the jaws horizontal, so it grips a block whose faces do not face the arm plane by its
     edges. To test in MuJoCo; the fallback is to keep the block area in the top-down zone.
   - The TCP and the contact angle change with the block's size, which project 1's ROB-17 fixes.
