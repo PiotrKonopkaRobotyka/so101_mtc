@@ -282,8 +282,12 @@ private:
     const std::string support = parameter<std::string>("support_link");
 
     task.add(std::make_unique<mtc::stages::CurrentState>("current state"));
-    // the block rests on the table, slightly sunk into it in MuJoCo, until the lift
+    // the block rests on the table, slightly sunk into it in MuJoCo, until the lift (each scene change is checked
+    // for collisions, so this comes first)
     task.add(allow("allow block-table collisions", { support }, true));
+    // move_group's scene keeps what the executed stages changed: a run stopped between "allow" and "forbid" would
+    // leave the hand free to pass through the block
+    task.add(allow("reset hand-block collisions", hand_links, false));
     auto open = gripper("open gripper", parameter<std::string>("gripper_open"));
     mtc::Stage* opened = open.get();
     task.add(std::move(open));
@@ -465,7 +469,7 @@ int main(int argc, char** argv)
   int result = 0;
   try
   {
-    node->start();  // before add_node: the executor takes the callback groups that exist when the node joins
+    node->start();
     executor.add_node(node);
     executor.spin();
   }

@@ -54,12 +54,16 @@ if(BUILD_TESTING)
   xacro_add_xacro_file("${so101_mtc_description_DIR}/../urdf/so101_mtc.urdf.xacro" "${test_urdf}")
   add_custom_target(test_urdf ALL DEPENDS "${test_urdf}")
 
-  # The generator against MoveIt's KDL, FK and collision check over the task area (about 20 s)
+  # The generator against MoveIt's KDL, FK and collision check over the task area (about 30 s)
   ament_add_gtest(test_grasp_poses test/test_grasp_poses.cpp TIMEOUT 300 SKIP_LINKING_MAIN_LIBRARIES)
   target_link_libraries(test_grasp_poses grasp_poses yaml-cpp)
   ament_target_dependencies(test_grasp_poses ament_index_cpp moveit_ros_planning)
   target_compile_definitions(test_grasp_poses PRIVATE TEST_URDF="${test_urdf}")
   add_dependencies(test_grasp_poses test_urdf)
+
+  # The launch file with its default arguments, and the parameter files against what the node reads (no simulator)
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_pick_place test/test_pick_place.py TIMEOUT 120)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)

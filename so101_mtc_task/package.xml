@@ -31,6 +31,9 @@
   <exec_depend>so101_mtc_moveit_config</exec_depend>
 
   <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>ament_index_python</test_depend>
+  <test_depend>python3-yaml</test_depend>
   <test_depend>xacro</test_depend>
 
   <export>

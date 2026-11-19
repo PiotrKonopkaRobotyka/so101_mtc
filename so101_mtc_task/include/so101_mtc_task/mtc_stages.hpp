@@ -1,6 +1,7 @@
-// MTC generator stages that hand the poses of grasp_poses (ADR 0003) to ComputeIK. They follow the pattern of MTC's
-// own GeneratePose and GeneratePlacePose: a monitored stage's solution gives the planning scene, and each pose is
-// spawned as a state with the property "target_pose", which a ComputeIK wrapper turns into joint values.
+// MTC generator stages that hand the poses of grasp_poses (ADR 0003) to ComputeIK. They subclass MTC's GeneratePose
+// and GeneratePlacePose, and their compute() is based on those classes' (see src/mtc_stages.cpp for the license): a
+// monitored stage's solution gives the planning scene, and each pose is spawned as a state with the property
+// "target_pose", which a ComputeIK wrapper turns into joint values.
 #pragma once
 
 #include <memory>

@@ -57,7 +57,6 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - MTC: free motions (`Connect`) plan the arm only (no SRDF group holds arm + gripper, which execution needs); never
   move a world object in a stage callback (diff scenes share it): attach by message. JTC rejects MTC's end velocity
   of ~1e-3 rad/s unless `allow_nonzero_velocity_at_trajectory_end`.
-- rclcpp holds callback groups weakly: keep them as members, or their services and timers never run.
 
 ## Current milestone
 

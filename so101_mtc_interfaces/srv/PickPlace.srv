@@ -3,7 +3,7 @@
 
 geometry_msgs/Point target  # on the table top, in world (z is ignored)
 ---
-bool success  # planned and executed; whether the block rests on the target is for the simulator to check
+bool success  # planned and executed (planned, with the node's execute false); the simulator checks the block itself
 string failed_stage  # MTC's failing stages, or the execution's error; empty on success
 float64 planning_time  # s
 float64 execution_time  # s
