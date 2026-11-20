@@ -6,9 +6,8 @@ setup and commands for people are in [README.md](README.md); session log in `~/c
 
 ## Goal
 
-Pick and place of a block with the simulated SO-101 by classical planning: a fixed camera and OpenCV find the block,
-MoveIt 2 and MTC plan the grasp and the place. Project 2 of the series "the same task, different methods": the task
-and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001, architecture in `docs/`.
+Pick and place of a block with the simulated SO-101 by classical planning (a fixed camera and OpenCV, MoveIt 2 and
+MTC). Project 2 of "the same task, different methods": task and metrics from `so101_lerobot`; exit criteria ADR 0001.
 
 ## Packages in this repository
 
@@ -34,8 +33,8 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 - Underlay `/opt/ros/jazzy` only, never `moveit_ws` (ADR 0002): MTC 0.1.8 and `mujoco_ros2_control` 0.1.2 from apt.
 - Build `colcon build` (needs the fetched models); run `ros2 launch so101_mtc_bringup sim.launch.py` (alias
   `so101_mtc`), then `ros2 launch so101_mtc_task pick_place.launch.py [camera:=true]`; test `colcon test` (~35 s).
-- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_<perception|eval>` (~1 s; apt numpy, OpenCV and pytest, as CI).
-- Data in `DATA_DIR` (`~/data`) under `so101_mtc/`; checks and the trials' detached `run.sh`: `~/code/experiments/`.
+- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_<perception|eval>` (~1 s); CI also builds the `Dockerfile`'s
+  image and runs `colcon test` in it. Data: `DATA_DIR` (`~/data`)/`so101_mtc/`; detached runs: `~/code/experiments/`.
 
 ## Decisions (`docs/decisions/`)
 
@@ -47,8 +46,9 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 ## Pitfalls
 
-- MTC exists twice: apt 0.1.8 (ours) and source 0.1.4 in `moveit_ws` (other projects): never build or run with another
-  overlay sourced. Upgrade ROS packages a whole sync at a time (ros2_control 4.46 changed its ABI).
+- MTC exists twice: apt 0.1.8 (ours), source 0.1.4 in `moveit_ws`: never build or run with another overlay sourced.
+  Upgrade ROS packages a whole sync at a time (ros2_control 4.46 changed its ABI).
+- Episodes are deterministic (only OMPL varies): a failure repeats; trace it with M4's `diagnose.sh` (experiments).
 - 5 arm joints: a pose is reachable only with the `wrist_roll` axis (3.9 mm off the TCP) in the arm plane; take poses
   from `grasp_poses`, never `position_only_ik`. `wrist_roll` = jaw angle + 92.8° within −157°/+163°.
 - MuJoCo: `<attach>` drops the model's `<option>` (copied into the scene); services under `/mujoco_ros2_control_node/`;
@@ -60,5 +60,5 @@ and metrics come from `so101_lerobot` (its ADR 0005); exit criteria in ADR 0001,
 
 ## Current milestone
 
-M2 done (ROB-51–53), M3 done (camera pose, README "Block pose from the camera"). M4: 50 episodes with the camera
-(`~/code/experiments/so101_mtc_m4_episodes/run.sh`), then M5: README results, GIF, comparison with project 1.
+M1–M4 done (M4: ROB-56, README "Evaluation: 50 episodes"). M5 (ROB-57): GIF, comparison, Docker and `colcon test`
+in CI in place; left: the `wydanie` check, then the public repository (Piotr's step).

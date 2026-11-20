@@ -45,7 +45,9 @@ simulation's state only (`/opt/ros/jazzy/share/mujoco_ros2_control_msgs/{msg,srv
    - M2 runs 20 trials with seed 0, in one run;
    - M4 runs 50 episodes with the same draw, its seeds fixed in M4. Update 2026-11-19: seed 1, one run, with the
      block's pose from the camera (`camera:=true`, ADR 0005); its results go to `$DATA_DIR/so101_mtc/m4/`.
-     A trial without a fresh pose from the camera fails at the stage "perception".
+     A trial without a fresh pose from the camera fails at the stage "perception". Update 2026-11-20: a second run of the
+     same episodes timed the release (added after the first run) and showed the spread between runs; both are
+     reported (README, "Evaluation: 50 episodes").
 4. **One trial:**
    - **reset:** the gripper opens and the arm goes home through `move_group`; then the block is put down and settles
      for 1 s;
