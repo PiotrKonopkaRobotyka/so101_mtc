@@ -1,5 +1,6 @@
 # Tests: the ROS-free cores (so101_mtc_perception, so101_mtc_eval) with numpy and pytest, in a minute; and the
-# whole workspace, built in the Dockerfile's image (ROS 2 Jazzy, MoveIt 2, MTC, MuJoCo from apt), with colcon test.
+# whole workspace, built in the Dockerfile's image (ROS 2 Jazzy, MoveIt 2, MTC, MuJoCo from apt), with colcon test
+# and a smoke test of the whole system without windows.
 name: Tests
 
 on:
@@ -49,9 +50,9 @@ jobs:
           "source install/setup.bash && colcon test && colcon test-result --verbose"
 
       # the whole system without windows: the simulation, the camera's detector, the MTC task and the success check
-      # on two trials (tools/smoke_test.sh, about 2 minutes)
+      # on two trials (tools/smoke_test.sh with its defaults, about a minute)
       - name: Run the smoke test
         timeout-minutes: 15
         run: >
           docker run --rm so101_mtc bash -c
-          "source install/setup.bash && src/so101_mtc/tools/smoke_test.sh 2"
+          "source install/setup.bash && src/so101_mtc/tools/smoke_test.sh"

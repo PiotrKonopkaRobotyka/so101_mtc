@@ -33,8 +33,8 @@ MTC). Project 2 of "the same task, different methods": task and metrics from `so
 - Underlay `/opt/ros/jazzy` only, never `moveit_ws` (ADR 0002): MTC 0.1.8 and `mujoco_ros2_control` 0.1.2 from apt.
 - Build `colcon build` (needs the fetched models); run `ros2 launch so101_mtc_bringup sim.launch.py` (alias
   `so101_mtc`), then `ros2 launch so101_mtc_task pick_place.launch.py [camera:=true]`; test `colcon test` (~35 s).
-- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_<perception|eval>` (~1 s); CI also builds the `Dockerfile`'s
-  image and runs `colcon test` in it. Data: `DATA_DIR` (`~/data`)/`so101_mtc/`; detached runs: `~/code/experiments/`.
+- Core tests: `python3 -m pytest src/so101_mtc/so101_mtc_<perception|eval>` (~1 s). CI: the `Dockerfile`'s image
+  (CycloneDDS), `colcon test`, `tools/smoke_test.sh` (~1 min). Data `~/data/so101_mtc/`, runs `~/code/experiments/`.
 
 ## Decisions (`docs/decisions/`)
 
@@ -60,5 +60,5 @@ MTC). Project 2 of "the same task, different methods": task and metrics from `so
 
 ## Current milestone
 
-M1–M4 done (M4: ROB-56, README "Evaluation: 50 episodes"). M5 (ROB-57): GIF, comparison, Docker image and its
-`colcon test` job in CI; left: that job green, then the public repository (Piotr's step).
+M1–M4 done (M4: ROB-56, README "Evaluation: 50 episodes"). M5 (ROB-57): all in but the public repository (Piotr's
+step). Proposal after M4: ROB-58, the hand's tilt kept from grasp to place (Backlog, Piotr decides).

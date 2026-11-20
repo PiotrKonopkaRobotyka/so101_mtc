@@ -1,6 +1,6 @@
 # so101_mtc in a container: ROS 2 Jazzy desktop (RViz), the packages' apt dependencies through rosdep, the
 # third-party models (tools/fetch_models.py) and the built workspace in /ws. CI builds this image and runs
-# `colcon test` in it (.github/workflows/tests.yml). From this repository's root:
+# `colcon test` and tools/smoke_test.sh in it (.github/workflows/tests.yml). From this repository's root:
 #
 #   docker build -t so101_mtc .            # downloads about 1.7 GB; CI builds it in 5 minutes
 #   xhost +local:docker                    # lets the container open windows on your display
@@ -12,6 +12,8 @@ FROM osrf/ros:jazzy-desktop
 
 SHELL ["/bin/bash", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
+# CycloneDDS, the middleware of the native setup on which the results were measured
+ENV RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 WORKDIR /ws
 
 COPY . src/so101_mtc
@@ -20,7 +22,7 @@ COPY . src/so101_mtc
 # The upgrade first: the base image is an older sync, and ROS packages mix only within one sync (ros2_control's ABI)
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends git \
+    && apt-get install -y --no-install-recommends git ros-jazzy-rmw-cyclonedds-cpp \
     && rosdep update --rosdistro jazzy \
     && rosdep install --from-paths src --ignore-src --rosdistro jazzy -y \
     && rm -rf /var/lib/apt/lists/*
