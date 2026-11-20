@@ -1,4 +1,5 @@
-# Tests of the ROS-free cores (so101_mtc_perception, so101_mtc_eval): numpy and pytest, no ROS or simulator.
+# Tests: the ROS-free cores (so101_mtc_perception, so101_mtc_eval) with numpy and pytest, in a minute; and the
+# whole workspace, built in the Dockerfile's image (ROS 2 Jazzy, MoveIt 2, MTC, MuJoCo from apt), with colcon test.
 name: Tests
 
 on:
@@ -29,3 +30,20 @@ jobs:
         run: |
           /usr/bin/python3 -m pytest -rs src/so101_mtc/so101_mtc_perception
           /usr/bin/python3 -m pytest -rs src/so101_mtc/so101_mtc_eval
+
+  colcon_test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      # the image of the Dockerfile: apt dependencies, the models, colcon build (about 15 minutes)
+      - name: Build the Docker image
+        run: docker build -t so101_mtc .
+
+      # all packages' tests, no simulator: the description against MuJoCo, the MoveIt config, the launch files,
+      # the pose generator against KDL, the trials' runner and the detector (README "Tests")
+      - name: Run colcon test
+        run: >
+          docker run --rm so101_mtc bash -c
+          "source install/setup.bash && colcon test && colcon test-result --verbose"

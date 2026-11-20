@@ -48,5 +48,10 @@
     <!-- Fixed camera (camera_link in the URDF), straight down over the block area. A MuJoCo camera looks along its
       -z axis, with x to the image's right and y to its top. -->
     <camera name="camera" pos="0.22 0 0.55" xyaxes="0 -1 0 1 0 0" fovy="58" resolution="640 480"/>
+    <!-- Overview camera for videos only (the README's GIF), not in the URDF: front right, 30° above the table,
+      looking at (0.15, 0, 0.12) from 0.9 m, so the whole task area and the arm at home fit. The camera plugin
+      publishes it on /mujoco_camera_plugin/overview/color. -->
+    <camera name="overview" pos="0.825 -0.39 0.57" xyaxes="0.5 0.866 0 -0.433 0.25 0.866" fovy="40"
+      resolution="480 360"/>
   </worldbody>
 </mujoco>
