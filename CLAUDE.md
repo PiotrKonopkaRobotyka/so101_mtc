@@ -48,7 +48,7 @@ MTC). Project 2 of "the same task, different methods": task and metrics from `so
 
 - MTC exists twice: apt 0.1.8 (ours), source 0.1.4 in `moveit_ws`: never build or run with another overlay sourced.
   Upgrade ROS packages a whole sync at a time (ros2_control 4.46 changed its ABI).
-- Episodes are deterministic (only OMPL varies): a failure repeats; trace it with M4's `diagnose.sh` (experiments).
+- Episodes nearly repeat (M4: 47 of 50 within 1 mm across runs; the failure too); trace one with M4's `diagnose.sh`.
 - 5 arm joints: a pose is reachable only with the `wrist_roll` axis (3.9 mm off the TCP) in the arm plane; take poses
   from `grasp_poses`, never `position_only_ik`. `wrist_roll` = jaw angle + 92.8° within −157°/+163°.
 - MuJoCo: `<attach>` drops the model's `<option>` (copied into the scene); services under `/mujoco_ros2_control_node/`;
@@ -60,5 +60,5 @@ MTC). Project 2 of "the same task, different methods": task and metrics from `so
 
 ## Current milestone
 
-M1–M4 done (M4: ROB-56, README "Evaluation: 50 episodes"). M5 (ROB-57): GIF, comparison, Docker and `colcon test`
-in CI in place; left: the `wydanie` check, then the public repository (Piotr's step).
+M1–M4 done (M4: ROB-56, README "Evaluation: 50 episodes"). M5 (ROB-57): GIF, comparison, Docker image and its
+`colcon test` job in CI; left: that job green, then the public repository (Piotr's step).

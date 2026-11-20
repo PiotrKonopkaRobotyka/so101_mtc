@@ -10,7 +10,7 @@ metrics (success rate over 50 episodes, time per pick and place): imitation lear
 ![MTC picks the block with a grasp tilted 30° and places it on the target, at double speed: the overview camera and the fixed overhead camera that finds the block; the green ring, drawn on the video, is the target disc of the success check](docs/media/mtc_pick_and_place.gif)
 
 - **Result:** with the block's pose from the camera, 49 of 50 episodes pass project 1's success check (98 %, 95 %
-  interval 89.5–99.6 %), the same 49 in two runs; the block is released 10.1 s after the episode starts (median).
+  interval 89.5–99.6 %), the same 49 in two runs; the block is released 10.1 s after the task's call (median).
 - **Project 1, the same task:** its ACT policy succeeds in 33 % of 50 episodes, its teleoperated demonstrations in
   89 %, in 27.8 s and 17.8 s (median); see [Comparison with project 1](#comparison-with-project-1).
 
@@ -88,7 +88,7 @@ docker run -it --rm --net=host -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix so101
 ```
 
 Append a command to run something else in the container, e.g. `bash` for a shell with the workspace sourced. CI
-checks the image's build and tests, not its windows: the last command is the usual X11 setup.
+checks the image's build and tests, not its windows: the last command, the usual X11 setup, has not been run yet.
 
 ## Run the simulation
 
@@ -329,24 +329,26 @@ ros2 run so101_mtc_eval_ros run_trials --trials 50 --seed 1 --out m4   # about 1
 **Result** (two runs of the same 50 episodes, 2026-11-19 and 2026-11-20):
 
 - **Success: 49 of 50 in each run (98 %, 95 % Wilson interval 89.5–99.6 %).** Both runs chose the same grasp and the
-  same place in every episode, failed the same episode and left the block in the same place to within 6.3 mm (median
-  difference 0). MuJoCo and the pose generator are deterministic; only OMPL's free motions vary.
+  same place in every episode and failed the same one. The block ended in the same place to within 1 mm in 47
+  episodes (to 0.01 mm in 39); the other three ended 2.0, 6.4 and 17.1 mm apart.
 - **By grasp:** top-down 24 of 25, tilted 15° 12 of 12, tilted 30° 13 of 13. **Failures by stage:** perception 0,
   planning 0, execution 0, grasp 0, place 1.
-- **Time per pick and place** (ADR 0001: from the call to the release; the second run's 49 successes): 10.1 s mean
-  and median, SD 0.8 s, 7.8–12.1 s. Planning takes 1.0 s of it (median; at most 1.9 s), and the arm moves at half
+- **Time per pick and place** (ADR 0001's metric as ADR 0004 times it: from the task's call to the release; the
+  second run's 49 successes): 10.1 s mean and median, SD 0.8 s, 7.8–12.1 s. Planning takes 1.0 s of it (median; at most 1.9 s), and the arm moves at half
   its joints' speed limits. The whole task, until the arm is back home, takes 14.0 s (median).
 - **Accuracy:** the block ends 4.3 mm from the target's centre (median of the successes; at most 18 mm).
 
 **Where the block lands, and the failure.** The generator takes each family from its own point's distance: the
 grasp's from the block's, the place's from the target's. When they differ, the hand turns between the grasp and the
 place, the block held square to the jaws reaches the table tilted by as much, and when released it tips onto a face.
-The more the hand turns, the further from the target's centre the block lands (median, the same in both runs): 3.2 mm
-when the hand keeps its tilt (20 episodes), 4.4 mm after a turn of 15° (23), 9.4 mm after 30° (7). Episode 35 fails
-in both runs, and again in a replay that traced the block in the hand: a top-down grasp 0.19 m from the shoulder_pan
-axis, then a place tilted 30° for a target 0.32 m out. During the long swing between them, at the edge of the reach,
-the block slides 17 mm along the jaws and falls out 5 cm above the table, before the release; it lands 75 mm from the
-target's centre. A fix to try (M4's protocol was fixed before its results, so it stays untried here): choose the
+The more the hand turns, the further from the target's centre the block lands (median of all episodes, the failure
+included, the same in both runs): 3.2 mm when the hand keeps its tilt (20 episodes), 4.4 mm after a turn of 15° (23),
+9.4 mm after 30° (7). Episode 35 fails in both runs, and again in a replay that traced the block in the hand: a
+top-down grasp 0.19 m from the shoulder_pan axis, then a place tilted 30° for a target 0.32 m out, 118° around the
+axis (the longest swing of the 50; median 33°). While the arm swings and the hand turns, the block slides about
+15 mm sideways along the jaws' faces until the jaws close on nothing; it falls 5 cm onto the table well before the
+release and lands 75 mm from the target's centre. Episode 36 makes the same turn in a swing of 19°: the block stays
+in the hand, reaches the table tilted 29° and tips when released, 11 mm from the centre. A fix to try (M4's protocol was fixed before its results, so it stays untried here): choose the
 grasp's family for the target as well, so that the hand keeps its tilt from the grasp to the place.
 
 The rows behind these numbers are in [docs/results/](docs/results/): M2's trials (`m2_trials_seed0.csv`), M3's
@@ -362,22 +364,23 @@ demonstrations by webcam teleoperation, then LeRobot's ACT policy. Its numbers a
 
 | Method, 50 episodes | Success | Time per pick and place |
 | --- | --- | --- |
-| MTC and the camera (this repository) | 49 and 49 of 50 (98 %) | 10.1 s mean, 10.1 s median |
-| Project 1: ACT, 50,000 steps | 17 and 16 of 50 (33 %) | 31.8 s mean, 27.8 s median |
+| MTC and the camera (this repository) | 49 and 49 of 50 (98 %; 95 %: 89.5–99.6 %) | 10.1 s mean, 10.1 s median |
+| Project 1: ACT, 50,000 steps | 17 and 16 of 50 (33 %; 95 %: ±13 points) | 31.8 s mean, 27.8 s median |
 | Project 1: teleoperation, the demonstrations | 50 of 56 (89 %) | 20.0 s mean, 17.8 s median |
 
-- **The same:** the 25 mm block, the area it starts in, the target disc of 5 cm and the draw of both, the success
-  predicate, 50 episodes from the arm at home, MuJoCo with SO-101.
+- **The same:** the 25 mm block, the area it starts in, the target disc of 5 cm radius and the draw of both, the
+  success conditions, 50 episodes from the arm at home, MuJoCo with SO-101.
 - **Not the same:** the scenes are other samples of the same draw (seeds 1000–1049 of so101-nexus there, seed 1 of
-  ADR 0004 here); the success check here reads poses instead of contact forces (ADR 0004); the clock stops at the
-  release here and at the success there, which also waits for the block to rest 0.2 s, so a few tenths of a second
-  later for the same motion.
+  ADR 0004 here). The success conditions are checked here from poses instead of contact forces (ADR 0004): that the
+  table carries the block and that nothing pushes on it are read from its height and the hand's distance. The clock
+  runs from the task's call to the release here, and from the episode's start to the success there, which also waits
+  for the block to rest 0.2 s: a few tenths of a second later for the same motion.
 - **What each method is given:** MTC gets the robot's model, the block's size and colour, the camera's calibration and
   hand-made grasp families for 5 joints (ADR 0003), and no data. ACT gets 17.5 minutes of demonstrations and 3.5 h of
   training on a GPU, and sees only its two cameras and the joints; it knows nothing of the block or the kinematics.
 - **What the numbers say:** with everything known, planning wins by far: three times the success in a third of the
   time, at half the joints' speed. Its failure is systematic: the same episode in both runs, from a cause that the
-  trace shows and a rule can fix. ACT's are not: only 8 scenes succeeded in both of its runs, and most failures were
+  trace shows and a change of rules may remove. ACT's are not: only 8 scenes succeeded in both of its runs, and most failures were
   missed grasps.
 - **What planning pays for it:** every assumption is code. Another object, colour, light or clutter needs a new
   detector or new grasp rules, where ACT needs new demonstrations; a real arm would also need the camera and the arm
@@ -433,8 +436,8 @@ for ROS; `so101_mtc_perception_ros`'s test turns a synthetic image message into 
 - **The hand may turn between the grasp and the place.** Each takes its family from its own distance, so a block
   grasped near the base and placed far out reaches the table tilted, tips when released and, once in 50 episodes,
   slid out of the jaws on the way ([Evaluation](#evaluation-50-episodes)).
-- **The comparison with project 1** shares the task and the success predicate, not the scenes or the clock's end: the
-  release here, the success there ([Comparison with project 1](#comparison-with-project-1)).
+- **The comparison with project 1** shares the task and the success conditions (checked from poses here), not the
+  scenes or the clock's end: the release here, the success there ([Comparison with project 1](#comparison-with-project-1)).
 
 ## License and third-party code
 

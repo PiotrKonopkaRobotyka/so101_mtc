@@ -16,8 +16,10 @@ WORKDIR /ws
 
 COPY . src/so101_mtc
 
-# MoveIt 2, MTC, mujoco_ros2_control and the rest from apt, as in the native setup (ADR 0002); git for the models
+# MoveIt 2, MTC, mujoco_ros2_control and the rest from apt, as in the native setup (ADR 0002); git for the models.
+# The upgrade first: the base image is an older sync, and ROS packages mix only within one sync (ros2_control's ABI)
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends git \
     && rosdep update --rosdistro jazzy \
     && rosdep install --from-paths src --ignore-src --rosdistro jazzy -y \
