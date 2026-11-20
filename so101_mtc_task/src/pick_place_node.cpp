@@ -11,6 +11,8 @@
 // (https://github.com/automaticaddison/mycobot_ros2) by Addison Sears-Collins: the order of the stages and their
 // set-up. Its license, BSD-3-Clause:
 //
+//   Copyright (c) 2024, Automatic Addison
+//
 //   Redistribution and use in source and binary forms, with or without modification, are permitted provided that
 //   the following conditions are met:
 //   * Redistributions of source code must retain the above copyright notice, this list of conditions and the

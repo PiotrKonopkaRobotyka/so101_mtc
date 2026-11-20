@@ -83,3 +83,9 @@ The spike ROB-44 measured the following. Its code is in `~/code/experiments/so10
   - The TCP and the contact angle change with the block's size, which project 1's ROB-17 fixes.
 - **Block area:** the map covers the provisional block area; the generator covers the whole reachable ring whatever
   area ROB-17 sets.
+- **Grasp and place families,** update 2026-11-20 (M4, ROB-56): each takes its family from its own point's distance
+  (`so101_mtc_task/src/grasp_poses.cpp`: `tiltFor` at :203, the grasp's at :263, the place's at :328), so the hand
+  turns between the grasp and the place by up to 30°, and the block, held square to the jaws, reaches the table
+  tilted by as much. M4 found the block landing further from the target the more the hand turns, and once, in a long
+  swing, sliding out of the jaws (README, "Evaluation: 50 episodes"; the trace `docs/results/m4_episode35_trace.csv`).
+  To try: the grasp's family chosen for the target too.

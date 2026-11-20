@@ -7,19 +7,29 @@ It is the second project of a series that solves the same task with different me
 metrics (success rate over 50 episodes, time per pick and place): imitation learning (webcam teleoperation and ACT,
 `so101_lerobot`), classical planning (this repository) and reinforcement learning (planned).
 
+![MTC picks the block with a grasp tilted 30° and places it on the target, at double speed: the overview camera and the fixed overhead camera that finds the block; the green ring, drawn on the video, is the target disc of the success check](docs/media/mtc_pick_and_place.gif)
+
+- **Result:** with the block's pose from the camera, 49 of 50 episodes pass project 1's success check (98 %, 95 %
+  interval 89.5–99.6 %), the same 49 in two runs; the block is released 10.1 s after the task's call (median).
+- **Project 1, the same task:** its ACT policy succeeds in 33 % of 50 episodes, its teleoperated demonstrations in
+  89 %, in 27.8 s and 17.8 s (median); see [Comparison with project 1](#comparison-with-project-1).
+
 ## Status
 
-M1 One-command sim bringup done: one command starts MuJoCo with the robot, the table, the block and the camera, the
-controllers, MoveIt with MTC's capability and RViz ([Run the simulation](#run-the-simulation)). M2 MTC pick and place
-from the block's true pose done: the MTC task picks the block and places it on a target in MuJoCo
-([Pick and place with MTC](#pick-and-place-with-mtc)), and 20 of 20 trials pass project 1's success check
-([Trials](#trials)). M3 (the block's pose from the camera) comes next. The scope and the exit
-criteria are fixed in [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md), the planned nodes, topics
-and TF frames in [docs/architecture.md](docs/architecture.md). The stack is fixed in
+M1–M4 done: one command starts MuJoCo with the robot, the table, the block and the camera, the controllers, MoveIt
+with MTC's capability and RViz ([Run the simulation](#run-the-simulation)); the MTC task picks the block and places
+it on a target ([Pick and place with MTC](#pick-and-place-with-mtc)), 20 of 20 trials from the block's true pose
+([Trials](#trials)); the block's pose comes from the fixed camera
+([Block pose from the camera](#block-pose-from-the-camera)); 50 episodes with the camera
+([Evaluation: 50 episodes](#evaluation-50-episodes)). M5, the release, adds the [Docker](#docker) image, `colcon
+test` in CI and the [comparison with project 1](#comparison-with-project-1).
+The scope and the exit criteria are fixed in [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md),
+the nodes, topics and TF frames in [docs/architecture.md](docs/architecture.md). The stack is fixed in
 [ADR 0002](docs/decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC
 from apt on `/opt/ros/jazzy`, the official SO-101 model. The grasp poses and the IK for the arm's 5 joints are fixed
 in [ADR 0003](docs/decisions/0003-ik_and_grasp_poses.md): top-down near the base, tilted further out, exactly
-reachable poses for MoveIt's default KDL.
+reachable poses for MoveIt's default KDL. The ADRs cite their sources; paths under `~/code/` and `~/data/` there are
+the author's local experiments and data, outside this repository.
 
 ## Packages
 
@@ -43,11 +53,13 @@ reachable poses for MoveIt's default KDL.
 
 ## Workspace setup
 
-Ubuntu 24.04 with ROS 2 Jazzy from apt; the workspace builds on `/opt/ros/jazzy` only (no MoveIt from source):
+Ubuntu 24.04 with ROS 2 Jazzy from apt ([installation](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html),
+then `sudo rosdep init` and `rosdep update` once); the workspace builds on `/opt/ros/jazzy` only (no MoveIt from
+source):
 
 ```bash
 mkdir -p so101_mtc_ws/src && cd so101_mtc_ws/src
-git clone git@github.com:PiotrKonopkaRobotyka/so101_mtc.git
+git clone https://github.com/PiotrKonopkaRobotyka/so101_mtc.git
 cd .. && python3 src/so101_mtc/tools/fetch_models.py   # pinned SO-101 models into src/ (~55 MB on disk)
 sudo apt install ros-jazzy-moveit ros-jazzy-moveit-task-constructor-core \
   ros-jazzy-moveit-task-constructor-capabilities ros-jazzy-moveit-task-constructor-visualization \
@@ -63,6 +75,20 @@ The build needs the fetched models: `so101_mtc_description` installs them from `
 Upgrade ROS packages a whole sync at a time (`sudo apt upgrade`): their dependencies carry no versions, so a partial
 upgrade can mix incompatible binaries. `rosdep` installs what the packages declare (MoveIt, MTC with its capability
 and panel, the MuJoCo bridge, the controllers); the apt line installs the largest of them in one go.
+
+### Docker
+
+The [Dockerfile](Dockerfile) builds the same workspace on `osrf/ros:jazzy-desktop`: the apt dependencies through
+`rosdep`, the models, `colcon build`. CI builds it and runs `colcon test` in it. From the repository's root:
+
+```bash
+docker build -t so101_mtc .   # downloads about 1.7 GB; CI builds it in 5 minutes
+xhost +local:docker           # lets the container open windows on your display
+docker run -it --rm --net=host -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix so101_mtc   # the simulation and RViz
+```
+
+Append a command to run something else in the container, e.g. `bash` for a shell with the workspace sourced. CI
+checks the image's build and tests, not its windows: the last command, the usual X11 setup, has not been run yet.
 
 ## Run the simulation
 
@@ -82,7 +108,8 @@ does closing the MuJoCo window.
   `/mujoco_ros2_control_node/reset_world` resets the scene (with the arm's controllers deactivated first).
 - The camera publishes `/camera/image_raw`, `/camera/depth/image_raw` and `/camera/camera_info` in
   `camera_optical_frame` at 10 Hz of simulation time; Menagerie's wrist camera publishes under
-  `/mujoco_camera_plugin/wrist_cam/`.
+  `/mujoco_camera_plugin/wrist_cam/`, the scene's overview camera (front right, for videos) under
+  `/mujoco_camera_plugin/overview/`.
 
 ## Robot description and scene
 
@@ -289,6 +316,76 @@ ADR 0004's draw with seed 1, the arm at home): **all 50 found; position error 0.
 percentile, 1.19 mm at most; yaw error 0.25° median, 1.4° at the 95th percentile, 2.6° at most.** A pixel covers
 about 1.2 mm of the table.
 
+## Evaluation: 50 episodes
+
+M4 runs the [trials](#trials) with the block's pose from the camera: the 50 episodes of ADR 0004's draw with seed 1,
+each from the arm at home to the success check, without retries. With the simulation running:
+
+```bash
+ros2 launch so101_mtc_task pick_place.launch.py run_at_start:=false camera:=true
+ros2 run so101_mtc_eval_ros run_trials --trials 50 --seed 1 --out m4   # about 15 minutes
+```
+
+**Result** (two runs of the same 50 episodes, 2026-11-19 and 2026-11-20):
+
+- **Success: 49 of 50 in each run (98 %, 95 % Wilson interval 89.5–99.6 %).** Both runs chose the same grasp and the
+  same place in every episode and failed the same one. The block ended in the same place to within 1 mm in 47
+  episodes (to 0.01 mm in 39); the other three ended 2.0, 6.4 and 17.1 mm apart.
+- **By grasp:** top-down 24 of 25, tilted 15° 12 of 12, tilted 30° 13 of 13. **Failures by stage:** perception 0,
+  planning 0, execution 0, grasp 0, place 1.
+- **Time per pick and place** (ADR 0001's metric as ADR 0004 times it: from the task's call to the release; the
+  second run's 49 successes): 10.1 s mean and median, SD 0.8 s, 7.8–12.1 s. Planning takes 1.0 s of it (median; at most 1.9 s), and the arm moves at half
+  its joints' speed limits. The whole task, until the arm is back home, takes 14.0 s (median).
+- **Accuracy:** the block ends 4.3 mm from the target's centre (median of the successes; at most 18 mm).
+
+**Where the block lands, and the failure.** The generator takes each family from its own point's distance: the
+grasp's from the block's, the place's from the target's. When they differ, the hand turns between the grasp and the
+place, the block held square to the jaws reaches the table tilted by as much, and when released it tips onto a face.
+The more the hand turns, the further from the target's centre the block lands (median of all episodes, the failure
+included, the same in both runs): 3.2 mm when the hand keeps its tilt (20 episodes), 4.4 mm after a turn of 15° (23),
+9.4 mm after 30° (7). Episode 35 fails in both runs, and again in a replay that traced the block in the hand: a
+top-down grasp 0.19 m from the shoulder_pan axis, then a place tilted 30° for a target 0.32 m out, 118° around the
+axis (the longest swing of the 50; median 33°). While the arm swings and the hand turns, the block slides about
+15 mm sideways along the jaws' faces until the jaws close on nothing; it falls 5 cm onto the table well before the
+release and lands 75 mm from the target's centre. Episode 36 makes the same turn in a swing of 19°: the block stays
+in the hand, reaches the table tilted 29° and tips when released, 11 mm from the centre. A fix to try (M4's protocol was fixed before its results, so it stays untried here): choose the
+grasp's family for the target as well, so that the hand keeps its tilt from the grasp to the place.
+
+The rows behind these numbers are in [docs/results/](docs/results/): M2's trials (`m2_trials_seed0.csv`), M3's
+camera errors (`m3_perception_seed1`), M4's two runs (`m4_trials_seed1_run1`, `_run2`; CSV rows and JSON summaries)
+and the traces of episodes 35 and 36 (`m4_episode35_trace.csv`, `m4_episode36_trace.csv`): at 50 Hz from the call,
+the block's pose, its tilt from flat, its lowest corner above the table, its distance from the target, the gripper's
+joint, the tcp, and the block's centre in the tcp's frame (mm).
+
+## Comparison with project 1
+
+[so101_lerobot](https://github.com/PiotrKonopkaRobotyka/so101_lerobot) solves the same task by imitation: 50
+demonstrations by webcam teleoperation, then LeRobot's ACT policy. Its numbers are from its README (2026-11-16):
+
+| Method, 50 episodes | Success | Time per pick and place |
+| --- | --- | --- |
+| MTC and the camera (this repository) | 49 and 49 of 50 (98 %; 95 %: 89.5–99.6 %) | 10.1 s mean, 10.1 s median |
+| Project 1: ACT, 50,000 steps | 17 and 16 of 50 (33 %; 95 %: ±13 points) | 31.8 s mean, 27.8 s median |
+| Project 1: teleoperation, the demonstrations | 50 of 56 (89 %) | 20.0 s mean, 17.8 s median |
+
+- **The same:** the 25 mm block, the area it starts in, the target disc of 5 cm radius and the draw of both, the
+  success conditions, 50 episodes from the arm at home, MuJoCo with SO-101.
+- **Not the same:** the scenes are other samples of the same draw (seeds 1000–1049 of so101-nexus there, seed 1 of
+  ADR 0004 here). The success conditions are checked here from poses instead of contact forces (ADR 0004): that the
+  table carries the block and that nothing pushes on it are read from its height and the hand's distance. The clock
+  runs from the task's call to the release here, and from the episode's start to the success there, which also waits
+  for the block to rest 0.2 s: a few tenths of a second later for the same motion.
+- **What each method is given:** MTC gets the robot's model, the block's size and colour, the camera's calibration and
+  hand-made grasp families for 5 joints (ADR 0003), and no data. ACT gets 17.5 minutes of demonstrations and 3.5 h of
+  training on a GPU, and sees only its two cameras and the joints; it knows nothing of the block or the kinematics.
+- **What the numbers say:** with everything known, planning wins by far: three times the success in a third of the
+  time, at half the joints' speed. Its failure is systematic: the same episode in both runs, from a cause that the
+  trace shows and a change of rules may remove. ACT's are not: only 8 scenes succeeded in both of its runs, and most failures were
+  missed grasps.
+- **What planning pays for it:** every assumption is code. Another object, colour, light or clutter needs a new
+  detector or new grasp rules, where ACT needs new demonstrations; a real arm would also need the camera and the arm
+  calibrated, which the simulator gives for free.
+
 ## Tests
 
 The ROS-free cores need only numpy, OpenCV and pytest (on Ubuntu 24.04:
@@ -301,9 +398,10 @@ python3 -m pytest so101_mtc_eval
 ```
 
 GitHub Actions runs the same tests with Ubuntu 24.04's apt packages, the versions this project uses, on every push
-to `main` and every pull request ([tests.yml](.github/workflows/tests.yml)).
+to `main` and every pull request ([tests.yml](.github/workflows/tests.yml)). A second job builds the
+[Docker](#docker) image and runs `colcon test` in it.
 
-The ROS packages are tested from the workspace, after the build (ROS 2 Jazzy; not in CI before M5):
+The ROS packages are tested from the workspace, after the build (ROS 2 Jazzy):
 
 ```bash
 colcon test && colcon test-result --verbose   # about 35 s, 30 of them so101_mtc_task's IK sweep
@@ -335,6 +433,11 @@ for ROS; `so101_mtc_perception_ros`'s test turns a synthetic image message into 
   shoulder_pan axis, as project 1's.
 - **Planned, then executed open loop.** Nothing re-plans when the block slips or the grasp misses; the success check
   only reports it. The motions run at half the joints' speed limits.
+- **The hand may turn between the grasp and the place.** Each takes its family from its own distance, so a block
+  grasped near the base and placed far out reaches the table tilted, tips when released and, once in 50 episodes,
+  slid out of the jaws on the way ([Evaluation](#evaluation-50-episodes)).
+- **The comparison with project 1** shares the task and the success conditions (checked from poses here), not the
+  scenes or the clock's end: the release here, the success there ([Comparison with project 1](#comparison-with-project-1)).
 
 ## License and third-party code
 
