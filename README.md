@@ -82,7 +82,7 @@ The [Dockerfile](Dockerfile) builds the same workspace on `osrf/ros:jazzy-deskto
 `rosdep`, the models, `colcon build`. CI builds it and runs `colcon test` in it. From the repository's root:
 
 ```bash
-docker build -t so101_mtc .   # downloads about 2.5 GB, builds in about 10 minutes
+docker build -t so101_mtc .   # downloads about 1.7 GB; CI builds it in 5 minutes
 xhost +local:docker           # lets the container open windows on your display
 docker run -it --rm --net=host -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix so101_mtc   # the simulation and RViz
 ```

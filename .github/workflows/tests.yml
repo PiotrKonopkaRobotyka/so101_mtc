@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # the image of the Dockerfile: apt dependencies, the models, colcon build (about 15 minutes)
+      # the image of the Dockerfile: apt dependencies, the models, colcon build (about 5 minutes)
       - name: Build the Docker image
         run: docker build -t so101_mtc .
 

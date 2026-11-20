@@ -2,7 +2,7 @@
 # third-party models (tools/fetch_models.py) and the built workspace in /ws. CI builds this image and runs
 # `colcon test` in it (.github/workflows/tests.yml). From this repository's root:
 #
-#   docker build -t so101_mtc .            # downloads about 2.5 GB, builds in about 10 minutes
+#   docker build -t so101_mtc .            # downloads about 1.7 GB; CI builds it in 5 minutes
 #   xhost +local:docker                    # lets the container open windows on your display
 #   docker run -it --rm --net=host -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix so101_mtc
 #
