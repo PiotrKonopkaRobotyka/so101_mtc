@@ -1,0 +1,29 @@
+{
+  "trials": 50,
+  "successes": 49,
+  "success_rate": 0.98,
+  "interval_95": [
+    0.8950431352816304,
+    0.9964608319110235
+  ],
+  "failures_by_stage": {
+    "place": 1
+  },
+  "successes_by_grasp_tilt_deg": {
+    "0": {
+      "successes": 24,
+      "trials": 25
+    },
+    "30": {
+      "successes": 13,
+      "trials": 13
+    },
+    "15": {
+      "successes": 12,
+      "trials": 12
+    }
+  },
+  "median_planning_s": 1.0369065155000001,
+  "median_total_s_of_executed": 14.006222777000005,
+  "median_release_s_of_successes": 10.139999999999986
+}

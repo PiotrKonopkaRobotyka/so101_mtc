@@ -22,13 +22,14 @@ it on a target ([Pick and place with MTC](#pick-and-place-with-mtc)), 20 of 20 t
 ([Trials](#trials)); the block's pose comes from the fixed camera
 ([Block pose from the camera](#block-pose-from-the-camera)); 50 episodes with the camera
 ([Evaluation: 50 episodes](#evaluation-50-episodes)). M5, the release, adds the [Docker](#docker) image, `colcon
-test` in CI and the [comparison with project 1](#comparison-with-project-1); the public repository is its last step.
+test` in CI and the [comparison with project 1](#comparison-with-project-1).
 The scope and the exit criteria are fixed in [ADR 0001](docs/decisions/0001-project_scope_and_exit_criteria.md),
 the nodes, topics and TF frames in [docs/architecture.md](docs/architecture.md). The stack is fixed in
 [ADR 0002](docs/decisions/0002-simulator_mtc_build_and_robot_model.md): MuJoCo through `mujoco_ros2_control`, MTC
 from apt on `/opt/ros/jazzy`, the official SO-101 model. The grasp poses and the IK for the arm's 5 joints are fixed
 in [ADR 0003](docs/decisions/0003-ik_and_grasp_poses.md): top-down near the base, tilted further out, exactly
-reachable poses for MoveIt's default KDL.
+reachable poses for MoveIt's default KDL. The ADRs cite their sources; paths under `~/code/` and `~/data/` there are
+the author's local experiments and data, outside this repository.
 
 ## Packages
 
@@ -52,11 +53,13 @@ reachable poses for MoveIt's default KDL.
 
 ## Workspace setup
 
-Ubuntu 24.04 with ROS 2 Jazzy from apt; the workspace builds on `/opt/ros/jazzy` only (no MoveIt from source):
+Ubuntu 24.04 with ROS 2 Jazzy from apt ([installation](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html),
+then `sudo rosdep init` and `rosdep update` once); the workspace builds on `/opt/ros/jazzy` only (no MoveIt from
+source):
 
 ```bash
 mkdir -p so101_mtc_ws/src && cd so101_mtc_ws/src
-git clone git@github.com:PiotrKonopkaRobotyka/so101_mtc.git
+git clone https://github.com/PiotrKonopkaRobotyka/so101_mtc.git
 cd .. && python3 src/so101_mtc/tools/fetch_models.py   # pinned SO-101 models into src/ (~55 MB on disk)
 sudo apt install ros-jazzy-moveit ros-jazzy-moveit-task-constructor-core \
   ros-jazzy-moveit-task-constructor-capabilities ros-jazzy-moveit-task-constructor-visualization \
@@ -345,6 +348,12 @@ axis, then a place tilted 30° for a target 0.32 m out. During the long swing be
 the block slides 17 mm along the jaws and falls out 5 cm above the table, before the release; it lands 75 mm from the
 target's centre. A fix to try (M4's protocol was fixed before its results, so it stays untried here): choose the
 grasp's family for the target as well, so that the hand keeps its tilt from the grasp to the place.
+
+The rows behind these numbers are in [docs/results/](docs/results/): M2's trials (`m2_trials_seed0.csv`), M3's
+camera errors (`m3_perception_seed1`), M4's two runs (`m4_trials_seed1_run1`, `_run2`; CSV rows and JSON summaries)
+and the traces of episodes 35 and 36 (`m4_episode35_trace.csv`, `m4_episode36_trace.csv`): at 50 Hz from the call,
+the block's pose, its tilt from flat, its lowest corner above the table, its distance from the target, the gripper's
+joint, the tcp, and the block's centre in the tcp's frame (mm).
 
 ## Comparison with project 1
 

@@ -16,7 +16,7 @@ WORKDIR /ws
 
 COPY . src/so101_mtc
 
-# MoveIt 2, MTC, mujoco_ros2_control and the rest from apt, as on the laptop (ADR 0002); git for the models
+# MoveIt 2, MTC, mujoco_ros2_control and the rest from apt, as in the native setup (ADR 0002); git for the models
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rosdep update --rosdistro jazzy \

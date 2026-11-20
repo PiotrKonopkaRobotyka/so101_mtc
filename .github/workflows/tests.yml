@@ -20,7 +20,7 @@ jobs:
         with:
           path: src/so101_mtc
 
-      # numpy, OpenCV and pytest from Ubuntu 24.04's apt: the versions the laptop runs (ADR 0002)
+      # numpy, OpenCV and pytest from Ubuntu 24.04's apt: the versions of the native setup (ADR 0002)
       - name: Install the apt packages
         run: >
           sudo apt-get update && sudo apt-get install -y --no-install-recommends
