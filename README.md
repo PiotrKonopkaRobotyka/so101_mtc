@@ -70,7 +70,9 @@ source install/setup.bash
 ```
 
 The build needs the fetched models: `so101_mtc_description` installs them from `src/SO-ARM100` and
-`src/mujoco_menagerie` and stops with a message when they are missing.
+`src/mujoco_menagerie` and stops with a message when they are missing. The results here were measured with
+CycloneDDS as the ROS middleware (`sudo apt install ros-jazzy-rmw-cyclonedds-cpp`, then
+`export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp`, e.g. in `~/.bashrc`); the Docker image sets it.
 
 Upgrade ROS packages a whole sync at a time (`sudo apt upgrade`): their dependencies carry no versions, so a partial
 upgrade can mix incompatible binaries. `rosdep` installs what the packages declare (MoveIt, MTC with its capability
@@ -79,7 +81,7 @@ and panel, the MuJoCo bridge, the controllers); the apt line installs the larges
 ### Docker
 
 The [Dockerfile](Dockerfile) builds the same workspace on `osrf/ros:jazzy-desktop`: the apt dependencies through
-`rosdep`, the models, `colcon build`. CI builds it and runs `colcon test` in it. From the repository's root:
+`rosdep`, the models, `colcon build`, with CycloneDDS as the ROS middleware. From the repository's root:
 
 ```bash
 docker build -t so101_mtc .   # downloads about 1.7 GB; CI builds it in 5 minutes
@@ -88,7 +90,8 @@ docker run -it --rm --net=host -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix so101
 ```
 
 Append a command to run something else in the container, e.g. `bash` for a shell with the workspace sourced. CI
-checks the image's build and tests, not its windows: the last command, the usual X11 setup, has not been run yet.
+checks the image's build, its tests and a run of the whole system without windows ([Tests](#tests)); the last command,
+the usual X11 setup for the windows, has not been run yet.
 
 ## Run the simulation
 
@@ -399,13 +402,18 @@ python3 -m pytest so101_mtc_eval
 
 GitHub Actions runs the same tests with Ubuntu 24.04's apt packages, the versions this project uses, on every push
 to `main` and every pull request ([tests.yml](.github/workflows/tests.yml)). A second job builds the
-[Docker](#docker) image and runs `colcon test` in it.
+[Docker](#docker) image and runs in it `colcon test` and [tools/smoke_test.sh](tools/smoke_test.sh), the whole system
+without windows.
 
 The ROS packages are tested from the workspace, after the build (ROS 2 Jazzy):
 
 ```bash
 colcon test && colcon test-result --verbose   # about 35 s, 30 of them so101_mtc_task's IK sweep
+src/so101_mtc/tools/smoke_test.sh             # about a minute; exit code 0 when both trials succeed
 ```
+
+The smoke test starts the simulation without windows and the task node with the camera's detector, on its own ROS
+domain, and runs the first two trials of M4's draw with the success check; its logs go to a temporary folder.
 
 The test expands the xacro, lets MuJoCo's `compile` load the scene, and checks that the two agree: the joints and
 their limits, the poses of all links over random joint angles, the camera and the table; that `tcp` is where ADR 0003

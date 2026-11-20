@@ -52,6 +52,7 @@ def pose_from(image_rgb, camera_matrix, world_from_camera, edge):
 def main(args=None):
     import rclpy
     from geometry_msgs.msg import PoseStamped
+    from rclpy.executors import ExternalShutdownException
     from rclpy.node import Node
     from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
     from rclpy.time import Time
@@ -98,7 +99,7 @@ def main(args=None):
     node = BlockDetector()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):  # Ctrl+C, or the launch shutting the context down
         pass
     finally:
         node.destroy_node()
