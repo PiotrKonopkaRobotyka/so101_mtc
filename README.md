@@ -88,7 +88,8 @@ docker run -it --rm --net=host -e DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix so101
 ```
 
 Append a command to run something else in the container, e.g. `bash` for a shell with the workspace sourced. CI
-checks the image's build and tests, not its windows: the last command, the usual X11 setup, has not been run yet.
+checks the image's build, its tests and a run of the whole system without windows ([Tests](#tests)); the last command,
+the usual X11 setup for the windows, has not been run yet.
 
 ## Run the simulation
 
@@ -399,7 +400,13 @@ python3 -m pytest so101_mtc_eval
 
 GitHub Actions runs the same tests with Ubuntu 24.04's apt packages, the versions this project uses, on every push
 to `main` and every pull request ([tests.yml](.github/workflows/tests.yml)). A second job builds the
-[Docker](#docker) image and runs `colcon test` in it.
+[Docker](#docker) image and runs `colcon test` in it, then [tools/smoke_test.sh](tools/smoke_test.sh): the whole
+system without windows (the simulation, the camera's detector, the MTC task and the success check) on the first two
+trials of M4's draw. It runs the same from a sourced workspace, in about 2 minutes:
+
+```bash
+src/so101_mtc/tools/smoke_test.sh   # exit code 0 when both trials succeed; the logs in a temporary folder
+```
 
 The ROS packages are tested from the workspace, after the build (ROS 2 Jazzy):
 

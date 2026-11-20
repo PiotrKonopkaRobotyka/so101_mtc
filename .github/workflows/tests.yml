@@ -47,3 +47,11 @@ jobs:
         run: >
           docker run --rm so101_mtc bash -c
           "source install/setup.bash && colcon test && colcon test-result --verbose"
+
+      # the whole system without windows: the simulation, the camera's detector, the MTC task and the success check
+      # on two trials (tools/smoke_test.sh, about 2 minutes)
+      - name: Run the smoke test
+        timeout-minutes: 15
+        run: >
+          docker run --rm so101_mtc bash -c
+          "source install/setup.bash && src/so101_mtc/tools/smoke_test.sh 2"
