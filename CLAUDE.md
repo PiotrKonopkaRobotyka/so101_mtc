@@ -60,5 +60,5 @@ MTC). Project 2 of "the same task, different methods": task and metrics from `so
 
 ## Current milestone
 
-M1–M4 done (M4: ROB-56, README "Evaluation: 50 episodes"). M5 (ROB-57): all in but the public repository (Piotr's
-step). Proposal after M4: ROB-58, the hand's tilt kept from grasp to place (Backlog, Piotr decides).
+The project is finished (2026-11-20): M0–M5 done, the exit criteria of ADR 0001 met, the repository public. The
+numbers live in the README; proposal for later: ROB-58, the hand's tilt kept from grasp to place (Backlog).
